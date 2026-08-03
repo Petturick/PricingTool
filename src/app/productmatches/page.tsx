@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { approveMatchAction, rejectMatchAction, setReviewMatchAction } from '@/app/actions/matchActions'
 import { DataTable } from '@/components/DataTable'
 import { formatDate, formatNumber } from '@/lib/format'

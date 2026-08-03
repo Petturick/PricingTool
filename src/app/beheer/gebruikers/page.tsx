@@ -1,4 +1,5 @@
-import { UserRole } from '@/generated/prisma'
+export const dynamic = 'force-dynamic'
+import { UserRole } from '@/generated/prisma/client'
 import { deleteUserAction, saveUserAction } from '@/app/actions/adminActions'
 import { DataTable } from '@/components/DataTable'
 import { formatDate } from '@/lib/format'

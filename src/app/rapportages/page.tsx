@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { generateWeeklyReportAction } from '@/app/actions/reportActions'
 import { DataTable } from '@/components/DataTable'

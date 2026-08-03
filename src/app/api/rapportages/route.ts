@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import writeXlsxFile from 'write-excel-file/node'
-import { ReportStatus } from '@/generated/prisma'
+import { ReportStatus } from '@/generated/prisma/client'
 import { buildWeeklyReportPayload } from '@/app/actions/reportActions'
 import { prisma } from '@/lib/prisma'
 

@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { DataTable } from '@/components/DataTable'
 import { formatDate } from '@/lib/format'
 import { prisma } from '@/lib/prisma'

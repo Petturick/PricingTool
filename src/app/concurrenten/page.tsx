@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { DataTable } from '@/components/DataTable'
 import { deriveCompetitorMetrics, getCompetitorsOverview } from '@/lib/dashboard'

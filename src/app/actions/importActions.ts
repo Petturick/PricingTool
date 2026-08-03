@@ -1,6 +1,6 @@
 'use server'
 
-import { ImportFormat, ImportStatus, MatchStatus, Prisma } from '@/generated/prisma'
+import { ImportFormat, ImportStatus, MatchStatus, Prisma } from '@/generated/prisma/client'
 import { createAuditLog, getSystemUser } from '@/lib/audit'
 import { matchProducts } from '@/lib/product-matching'
 import { normalizePrice } from '@/lib/price-normalization'

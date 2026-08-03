@@ -1,4 +1,4 @@
-import { MatchStatus, Prisma } from '@/generated/prisma'
+import { MatchStatus, Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { calculatePriceDifference } from '@/lib/price-normalization'
 import { decimalToNumber } from '@/lib/format'

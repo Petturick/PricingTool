@@ -1,6 +1,6 @@
 'use server'
 
-import { Prisma, ReportStatus } from '@/generated/prisma'
+import { Prisma, ReportStatus } from '@/generated/prisma/client'
 import { createAuditLog, getSystemUser } from '@/lib/audit'
 import { getDashboardSnapshot } from '@/lib/dashboard'
 import { decimalToNumber } from '@/lib/format'

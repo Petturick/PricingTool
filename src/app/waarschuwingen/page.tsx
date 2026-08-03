@@ -1,4 +1,5 @@
-import { AlertSeverity } from '@/generated/prisma'
+export const dynamic = 'force-dynamic'
+import { AlertSeverity } from '@/generated/prisma/client'
 import { markAlertReadAction } from '@/app/actions/alertActions'
 import { AlertBadge } from '@/components/AlertBadge'
 import { DataTable } from '@/components/DataTable'

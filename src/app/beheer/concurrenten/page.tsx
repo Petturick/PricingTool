@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { deleteCompetitorAdminAction, saveCompetitorAdminAction } from '@/app/actions/adminActions'
 import { DataTable } from '@/components/DataTable'
 import { prisma } from '@/lib/prisma'

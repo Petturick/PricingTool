@@ -1,5 +1,6 @@
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
-import { Prisma } from '@/generated/prisma'
+import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { productSchema } from '@/lib/validators'
 

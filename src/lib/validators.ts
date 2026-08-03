@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AlertSeverity, ImportFormat, MatchStatus, ReportStatus, UserRole } from '@/generated/prisma'
+import { AlertSeverity, ImportFormat, MatchStatus, ReportStatus, UserRole } from '@/generated/prisma/client'
 
 export const productSchema = z.object({
   articleNumber: z.string().min(1),

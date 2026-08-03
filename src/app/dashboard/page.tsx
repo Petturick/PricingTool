@@ -1,5 +1,6 @@
+export const dynamic = 'force-dynamic'
 import Link from 'next/link'
-import { MatchStatus } from '@/generated/prisma'
+import { MatchStatus } from '@/generated/prisma/client'
 import { DataTable } from '@/components/DataTable'
 import { StatCard } from '@/components/StatCard'
 import { getDashboardSnapshot } from '@/lib/dashboard'

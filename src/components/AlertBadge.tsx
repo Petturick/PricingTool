@@ -1,4 +1,4 @@
-import { AlertSeverity } from '@/generated/prisma'
+import { AlertSeverity } from '@/generated/prisma/client'
 import { cn } from '@/lib/format'
 
 const styles: Record<AlertSeverity, string> = {

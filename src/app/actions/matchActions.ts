@@ -1,6 +1,6 @@
 'use server'
 
-import { MatchStatus } from '@/generated/prisma'
+import { MatchStatus } from '@/generated/prisma/client'
 import { createAuditLog, getSystemUser } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { matchActionSchema } from '@/lib/validators'

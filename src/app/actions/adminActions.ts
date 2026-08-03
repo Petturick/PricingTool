@@ -1,7 +1,7 @@
 'use server'
 
 import bcrypt from 'bcryptjs'
-import { Prisma } from '@/generated/prisma'
+import { Prisma } from '@/generated/prisma/client'
 import { createAuditLog, getSystemUser } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { competitorSchema, countrySchema, productGroupSchema, userSchema, webshopSchema } from '@/lib/validators'

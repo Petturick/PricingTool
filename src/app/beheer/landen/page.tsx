@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { deleteCountryAction, saveCountryAction } from '@/app/actions/adminActions'
 import { DataTable } from '@/components/DataTable'
 import { formatNumber } from '@/lib/format'

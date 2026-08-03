@@ -1,4 +1,4 @@
-import { Prisma } from '@/generated/prisma'
+import { Prisma } from '@/generated/prisma/client'
 
 const vatMap: Record<string, string> = {
   NL: '21',
