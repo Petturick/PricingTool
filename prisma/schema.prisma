@@ -1,0 +1,297 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum UserRole {
+  ADMIN
+  ANALYST
+  READONLY
+}
+
+enum MatchStatus {
+  CERTAIN
+  REVIEW
+  UNRELIABLE
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum ImportFormat {
+  CSV
+  XLSX
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+enum ReportStatus {
+  PENDING
+  GENERATED
+  FAILED
+}
+
+model User {
+  id              String         @id @default(cuid())
+  email           String         @unique
+  name            String
+  passwordHash    String
+  role            UserRole
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  approvedMatches ProductMatch[] @relation("ApprovedMatches")
+  importTasks     ImportTask[]   @relation("ImportTaskUser")
+  auditLogs       AuditLog[]
+}
+
+model Country {
+  id         String       @id @default(cuid())
+  code       String       @unique
+  name       String
+  vatRate    Decimal
+  currency   String
+  isActive   Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  competitors Competitor[]
+  webshops   Webshop[]
+  alertRules AlertRule[]
+}
+
+model Webshop {
+  id           String      @id @default(cuid())
+  name         String
+  url          String
+  countryId    String
+  competitorId String?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  country      Country     @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  competitor   Competitor? @relation(fields: [competitorId], references: [id], onDelete: SetNull)
+
+  @@unique([name, countryId])
+}
+
+model ProductGroup {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  products    Product[]
+  alertRules  AlertRule[]
+}
+
+model Product {
+  id              String            @id @default(cuid())
+  articleNumber   String            @unique
+  ean             String?
+  gtin            String?
+  name            String
+  productGroupId  String
+  ownPrice        Decimal?
+  vatIncluded     Boolean           @default(true)
+  packagingUnit   String?
+  packagingQty    Int               @default(1)
+  currency        String            @default("EUR")
+  stockStatus     String?
+  isActive        Boolean           @default(true)
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  productGroup    ProductGroup      @relation(fields: [productGroupId], references: [id], onDelete: Restrict)
+  matches         ProductMatch[]
+  alerts          Alert[]
+  ownPriceHistory OwnPriceHistory[]
+}
+
+model Competitor {
+  id                  String            @id @default(cuid())
+  name                String
+  website             String
+  countryId           String
+  isActive            Boolean           @default(true)
+  checkFrequencyHours Int               @default(24)
+  lastCheckedAt       DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  country             Country           @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  offers              CompetitorOffer[]
+  webshops            Webshop[]
+  alertRules          AlertRule[]
+
+  @@unique([name, countryId])
+}
+
+model CompetitorOffer {
+  id              String         @id @default(cuid())
+  competitorId    String
+  productMatchId  String?
+  url             String
+  rawPrice        Decimal?
+  normalizedPrice Decimal?
+  currency        String         @default("EUR")
+  vatIncluded     Boolean        @default(true)
+  packagingUnit   String?
+  packagingQty    Int?
+  stockStatus     String?
+  lastCheckedAt   DateTime?
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  competitor      Competitor     @relation(fields: [competitorId], references: [id], onDelete: Restrict)
+  productMatch    ProductMatch?
+  alerts          Alert[]
+  priceChecks     PriceCheck[]
+  priceHistory    PriceHistory[]
+
+  @@index([productMatchId])
+}
+
+model ProductMatch {
+  id                String          @id @default(cuid())
+  productId         String
+  competitorOfferId String          @unique
+  confidenceScore   Int
+  matchStatus       MatchStatus
+  matchEvidence     Json
+  approvedBy        String?
+  approvedAt        DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  product           Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  competitorOffer   CompetitorOffer @relation(fields: [competitorOfferId], references: [id], onDelete: Restrict)
+  approvedByUser    User?           @relation("ApprovedMatches", fields: [approvedBy], references: [id], onDelete: SetNull)
+
+  @@index([matchStatus])
+}
+
+model PriceCheck {
+  id                String          @id @default(cuid())
+  competitorOfferId String
+  checkedAt         DateTime
+  foundPrice        Decimal?
+  currency          String
+  stockStatus       String?
+  productTitle      String?
+  packagingUnit     String?
+  checkMethod       String
+  statusCode        Int?
+  errorMessage      String?
+  sourceUrl         String
+  isSuccess         Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  competitorOffer   CompetitorOffer @relation(fields: [competitorOfferId], references: [id], onDelete: Cascade)
+
+  @@index([checkedAt])
+}
+
+model PriceHistory {
+  id                String          @id @default(cuid())
+  competitorOfferId String
+  recordedAt        DateTime
+  price             Decimal
+  normalizedPrice   Decimal?
+  currency          String
+  stockStatus       String?
+  source            String
+  createdAt         DateTime        @default(now())
+  competitorOffer   CompetitorOffer @relation(fields: [competitorOfferId], references: [id], onDelete: Cascade)
+
+  @@index([recordedAt])
+}
+
+model OwnPriceHistory {
+  id         String   @id @default(cuid())
+  productId  String
+  recordedAt DateTime
+  price      Decimal
+  currency   String
+  createdAt  DateTime @default(now())
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([recordedAt])
+}
+
+model Alert {
+  id                String           @id @default(cuid())
+  type              String
+  productId         String?
+  competitorOfferId String?
+  title             String
+  message           String
+  severity          AlertSeverity
+  isRead            Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+  product           Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  competitorOffer   CompetitorOffer? @relation(fields: [competitorOfferId], references: [id], onDelete: SetNull)
+
+  @@index([severity])
+}
+
+model AlertRule {
+  id             String       @id @default(cuid())
+  type           String
+  threshold      Decimal?
+  isActive       Boolean      @default(true)
+  countryId      String?
+  productGroupId String?
+  competitorId   String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  country        Country?     @relation(fields: [countryId], references: [id], onDelete: SetNull)
+  productGroup   ProductGroup? @relation(fields: [productGroupId], references: [id], onDelete: SetNull)
+  competitor     Competitor?  @relation(fields: [competitorId], references: [id], onDelete: SetNull)
+}
+
+model ImportTask {
+  id            String       @id @default(cuid())
+  filename      String
+  format        ImportFormat
+  status        ImportStatus @default(PENDING)
+  totalRows     Int?
+  processedRows Int?
+  errorRows     Int?
+  errors        Json?
+  warnings      Json?
+  importedBy    String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  user          User         @relation("ImportTaskUser", fields: [importedBy], references: [id], onDelete: Restrict)
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  title       String
+  weekStart   DateTime
+  weekEnd     DateTime
+  status      ReportStatus @default(PENDING)
+  content     Json?
+  generatedAt DateTime?
+  createdAt   DateTime     @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
