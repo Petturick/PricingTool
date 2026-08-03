@@ -44,7 +44,10 @@
     "@prisma/engines@7.9.1": true,
     "prisma@7.9.1": true,
     "sharp@0.34.5": true,
-    "unrs-resolver@1.12.2": true
+    "unrs-resolver@1.12.2": true,
+    "better-sqlite3@12.11.1": true,
+    "better-sqlite3@12.4.1": true,
+    "esbuild@0.25.12": true
   },
   "prisma": {
     "seed": "node --import tsx prisma/seed.ts"
