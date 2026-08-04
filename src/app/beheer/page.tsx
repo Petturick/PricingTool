@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic'
 import Link from 'next/link'
+import { DatabaseNotice } from '@/components/DatabaseNotice'
 import { prisma } from '@/lib/prisma'
+import { safeDatabaseQuery } from '@/lib/safe-database'
 
 const links = [
   { href: '/beheer/landen', label: 'Landen beheer', description: 'BTW, valuta en activatie per land.' },
@@ -12,14 +14,15 @@ const links = [
 ]
 
 export default async function BeheerPage() {
-  const [countries, competitors, webshops, productGroups, users, logs] = await Promise.all([
+  const result = await safeDatabaseQuery(() => Promise.all([
     prisma.country.count(),
     prisma.competitor.count(),
     prisma.webshop.count(),
     prisma.productGroup.count(),
     prisma.user.count(),
     prisma.auditLog.count(),
-  ])
+  ]), [0, 0, 0, 0, 0, 0])
+  const [countries, competitors, webshops, productGroups, users, logs] = result.data
 
   const stats = [
     { label: 'Landen', value: countries },
@@ -32,6 +35,7 @@ export default async function BeheerPage() {
 
   return (
     <div className="space-y-6">
+      {!result.available && <DatabaseNotice />}
       <div>
         <h1 className="text-3xl font-semibold">Beheer</h1>
         <p className="mt-2 text-sm text-slate-600">Beheer kerngegevens, rollen en configuraties voor prijsmonitoring.</p>
