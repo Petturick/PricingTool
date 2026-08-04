@@ -1,19 +1,24 @@
 export const dynamic = 'force-dynamic'
 import { deleteWebshopAction, saveWebshopAction } from '@/app/actions/adminActions'
 import { DataTable } from '@/components/DataTable'
+import { DatabaseNotice } from '@/components/DatabaseNotice'
 import { prisma } from '@/lib/prisma'
+import { safeDatabaseQuery } from '@/lib/safe-database'
 
 export default async function WebshopsBeheerPage() {
-  const [webshops, countries, competitors] = await Promise.all([
+  const result = await safeDatabaseQuery(() => Promise.all([
     prisma.webshop.findMany({ include: { country: true, competitor: true }, orderBy: { name: 'asc' } }),
     prisma.country.findMany({ orderBy: { name: 'asc' } }),
     prisma.competitor.findMany({ orderBy: { name: 'asc' } }),
-  ])
+  ]), [[], [], []])
+  const [webshops, countries, competitors] = result.data
 
   return (
     <div className="space-y-6">
+      {!result.available && <DatabaseNotice />}
       <h1 className="text-3xl font-semibold">Webshops beheer</h1>
       <form action={saveWebshopAction} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-5">
+        <fieldset disabled={!result.available} className="contents disabled:opacity-50">
         <input name="name" placeholder="Naam" className="rounded-xl border border-slate-300 px-3 py-2 text-sm" required />
         <input name="url" placeholder="URL" className="rounded-xl border border-slate-300 px-3 py-2 text-sm" required />
         <select name="countryId" className="rounded-xl border border-slate-300 px-3 py-2 text-sm" required>
@@ -25,6 +30,7 @@ export default async function WebshopsBeheerPage() {
         </select>
         <label className="flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm"><input type="checkbox" name="isActive" defaultChecked /> Actief</label>
         <button className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white md:col-span-5">Webshop opslaan</button>
+        </fieldset>
       </form>
       <DataTable
         columns={[
