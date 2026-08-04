@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@netlify/plugin-nextjs": "^5.15.13",
-    "@prisma/adapter-better-sqlite3": "^7.9.1",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "@tanstack/react-table": "^8.21.3",
@@ -19,7 +18,6 @@
     "@types/node-fetch": "^2.6.13",
     "@types/pg": "^8.20.3",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.4.1",
     "csv-parse": "^7.0.2",
     "next": "16.2.12",
     "next-auth": "^5.0.0-beta.32",
@@ -50,8 +48,6 @@
     "prisma@7.9.1": true,
     "sharp@0.34.5": true,
     "unrs-resolver@1.12.2": true,
-    "better-sqlite3@12.11.1": true,
-    "better-sqlite3@12.4.1": true,
     "esbuild@0.25.12": true
   },
   "prisma": {
