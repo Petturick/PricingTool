@@ -1,21 +1,25 @@
 export const dynamic = 'force-dynamic'
 import { approveMatchAction, rejectMatchAction, setReviewMatchAction } from '@/app/actions/matchActions'
 import { DataTable } from '@/components/DataTable'
+import { DatabaseNotice } from '@/components/DatabaseNotice'
 import { formatDate, formatNumber } from '@/lib/format'
 import { prisma } from '@/lib/prisma'
+import { safeDatabaseQuery } from '@/lib/safe-database'
 
 export default async function ProductmatchesPage() {
-  const matches = await prisma.productMatch.findMany({
+  const result = await safeDatabaseQuery(() => prisma.productMatch.findMany({
     where: { confidenceScore: { gte: 80, lte: 94 } },
     include: {
       product: true,
       competitorOffer: { include: { competitor: true } },
     },
     orderBy: [{ confidenceScore: 'desc' }, { createdAt: 'desc' }],
-  })
+  }), [])
+  const matches = result.data
 
   return (
     <div className="space-y-6">
+      {!result.available && <DatabaseNotice />}
       <div>
         <h1 className="text-3xl font-semibold">Productmatches</h1>
         <p className="mt-2 text-sm text-slate-600">Matches met een score van 80-94 vereisen manuele controle voordat ze als geldig worden ingezet.</p>
