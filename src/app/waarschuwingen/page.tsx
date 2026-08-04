@@ -3,8 +3,10 @@ import { AlertSeverity } from '@/generated/prisma/client'
 import { markAlertReadAction } from '@/app/actions/alertActions'
 import { AlertBadge } from '@/components/AlertBadge'
 import { DataTable } from '@/components/DataTable'
+import { DatabaseNotice } from '@/components/DatabaseNotice'
 import { formatDate } from '@/lib/format'
 import { prisma } from '@/lib/prisma'
+import { safeDatabaseQuery } from '@/lib/safe-database'
 
 function readParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
@@ -16,7 +18,7 @@ export default async function WaarschuwingenPage({ searchParams }: { searchParam
   const type = readParam(params.type)
   const productId = readParam(params.product)
 
-  const alerts = await prisma.alert.findMany({
+  const result = await safeDatabaseQuery(() => prisma.alert.findMany({
     where: {
       severity: severity || undefined,
       type: type || undefined,
@@ -24,10 +26,12 @@ export default async function WaarschuwingenPage({ searchParams }: { searchParam
     },
     include: { product: true, competitorOffer: { include: { competitor: true } } },
     orderBy: [{ isRead: 'asc' }, { createdAt: 'desc' }],
-  })
+  }), [])
+  const alerts = result.data
 
   return (
     <div className="space-y-6">
+      {!result.available && <DatabaseNotice />}
       <div>
         <h1 className="text-3xl font-semibold">Waarschuwingen</h1>
         <p className="mt-2 text-sm text-slate-600">Signaleringen op prijsverschillen, mislukte controles en afwijkende marktontwikkelingen.</p>
