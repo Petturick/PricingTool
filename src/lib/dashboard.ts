@@ -125,6 +125,8 @@ export function deriveProductMetrics(product: ProductWithRelations, filters: Das
   }
 }
 
+export type DashboardSnapshot = Awaited<ReturnType<typeof getDashboardSnapshot>>
+
 export async function getDashboardSnapshot(filters: DashboardFilters = {}) {
   const [products, failedChecks, staleOffers, filterOptions] = await Promise.all([
     getFilteredProducts(filters),

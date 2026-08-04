@@ -47,110 +47,120 @@ model User {
   id              String         @id @default(cuid())
   email           String         @unique
   name            String
-  passwordHash    String
+  passwordHash    String         @map("password_hash")
   role            UserRole
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
   approvedMatches ProductMatch[] @relation("ApprovedMatches")
   importTasks     ImportTask[]   @relation("ImportTaskUser")
   auditLogs       AuditLog[]
+
+  @@map("users")
 }
 
 model Country {
-  id         String       @id @default(cuid())
-  code       String       @unique
-  name       String
-  vatRate    Decimal
-  currency   String
-  isActive   Boolean      @default(true)
-  createdAt  DateTime     @default(now())
+  id          String       @id @default(cuid())
+  code        String       @unique
+  name        String
+  vatRate     Decimal      @map("vat_rate")
+  currency    String
+  isActive    Boolean      @default(true) @map("is_active")
+  createdAt   DateTime     @default(now()) @map("created_at")
   competitors Competitor[]
-  webshops   Webshop[]
-  alertRules AlertRule[]
+  webshops    Webshop[]
+  alertRules  AlertRule[]
+
+  @@map("countries")
 }
 
 model Webshop {
   id           String      @id @default(cuid())
   name         String
   url          String
-  countryId    String
-  competitorId String?
-  isActive     Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  countryId    String      @map("country_id")
+  competitorId String?     @map("competitor_id")
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
   country      Country     @relation(fields: [countryId], references: [id], onDelete: Restrict)
   competitor   Competitor? @relation(fields: [competitorId], references: [id], onDelete: SetNull)
 
   @@unique([name, countryId])
+  @@map("webshops")
 }
 
 model ProductGroup {
   id          String      @id @default(cuid())
   name        String      @unique
   description String?
-  isActive    Boolean     @default(true)
-  createdAt   DateTime    @default(now())
+  isActive    Boolean     @default(true) @map("is_active")
+  createdAt   DateTime    @default(now()) @map("created_at")
   products    Product[]
   alertRules  AlertRule[]
+
+  @@map("product_groups")
 }
 
 model Product {
   id              String            @id @default(cuid())
-  articleNumber   String            @unique
+  articleNumber   String            @unique @map("article_number")
   ean             String?
   gtin            String?
   name            String
-  productGroupId  String
-  ownPrice        Decimal?
-  vatIncluded     Boolean           @default(true)
-  packagingUnit   String?
-  packagingQty    Int               @default(1)
+  productGroupId  String            @map("product_group_id")
+  ownPrice        Decimal?          @map("own_price")
+  vatIncluded     Boolean           @default(true) @map("vat_included")
+  packagingUnit   String?           @map("packaging_unit")
+  packagingQty    Int               @default(1) @map("packaging_qty")
   currency        String            @default("EUR")
-  stockStatus     String?
-  isActive        Boolean           @default(true)
+  stockStatus     String?           @map("stock_status")
+  isActive        Boolean           @default(true) @map("is_active")
   notes           String?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
   productGroup    ProductGroup      @relation(fields: [productGroupId], references: [id], onDelete: Restrict)
   matches         ProductMatch[]
   alerts          Alert[]
   ownPriceHistory OwnPriceHistory[]
+
+  @@map("products")
 }
 
 model Competitor {
   id                  String            @id @default(cuid())
   name                String
   website             String
-  countryId           String
-  isActive            Boolean           @default(true)
-  checkFrequencyHours Int               @default(24)
-  lastCheckedAt       DateTime?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  countryId           String            @map("country_id")
+  isActive            Boolean           @default(true) @map("is_active")
+  checkFrequencyHours Int               @default(24) @map("check_frequency_hours")
+  lastCheckedAt       DateTime?         @map("last_checked_at")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
   country             Country           @relation(fields: [countryId], references: [id], onDelete: Restrict)
   offers              CompetitorOffer[]
   webshops            Webshop[]
   alertRules          AlertRule[]
 
   @@unique([name, countryId])
+  @@map("competitors")
 }
 
 model CompetitorOffer {
   id              String         @id @default(cuid())
-  competitorId    String
-  productMatchId  String?
+  competitorId    String         @map("competitor_id")
+  productMatchId  String?        @map("product_match_id")
   url             String
-  rawPrice        Decimal?
-  normalizedPrice Decimal?
+  rawPrice        Decimal?       @map("raw_price")
+  normalizedPrice Decimal?       @map("normalized_price")
   currency        String         @default("EUR")
-  vatIncluded     Boolean        @default(true)
-  packagingUnit   String?
-  packagingQty    Int?
-  stockStatus     String?
-  lastCheckedAt   DateTime?
-  isActive        Boolean        @default(true)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  vatIncluded     Boolean        @default(true) @map("vat_included")
+  packagingUnit   String?        @map("packaging_unit")
+  packagingQty    Int?           @map("packaging_qty")
+  stockStatus     String?        @map("stock_status")
+  lastCheckedAt   DateTime?      @map("last_checked_at")
+  isActive        Boolean        @default(true) @map("is_active")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
   competitor      Competitor     @relation(fields: [competitorId], references: [id], onDelete: Restrict)
   productMatch    ProductMatch?
   alerts          Alert[]
@@ -158,102 +168,110 @@ model CompetitorOffer {
   priceHistory    PriceHistory[]
 
   @@index([productMatchId])
+  @@map("competitor_offers")
 }
 
 model ProductMatch {
   id                String          @id @default(cuid())
-  productId         String
-  competitorOfferId String          @unique
-  confidenceScore   Int
-  matchStatus       MatchStatus
-  matchEvidence     Json
-  approvedBy        String?
-  approvedAt        DateTime?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  productId         String          @map("product_id")
+  competitorOfferId String          @unique @map("competitor_offer_id")
+  confidenceScore   Int             @map("confidence_score")
+  matchStatus       MatchStatus     @map("match_status")
+  matchEvidence     Json            @map("match_evidence")
+  approvedBy        String?         @map("approved_by")
+  approvedAt        DateTime?       @map("approved_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
   product           Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
   competitorOffer   CompetitorOffer @relation(fields: [competitorOfferId], references: [id], onDelete: Restrict)
   approvedByUser    User?           @relation("ApprovedMatches", fields: [approvedBy], references: [id], onDelete: SetNull)
 
   @@index([matchStatus])
+  @@map("product_matches")
 }
 
 model PriceCheck {
   id                String          @id @default(cuid())
-  competitorOfferId String
-  checkedAt         DateTime
-  foundPrice        Decimal?
+  competitorOfferId String          @map("competitor_offer_id")
+  checkedAt         DateTime        @map("checked_at")
+  foundPrice        Decimal?        @map("found_price")
   currency          String
-  stockStatus       String?
-  productTitle      String?
-  packagingUnit     String?
-  checkMethod       String
-  statusCode        Int?
-  errorMessage      String?
-  sourceUrl         String
-  isSuccess         Boolean         @default(true)
-  createdAt         DateTime        @default(now())
+  stockStatus       String?         @map("stock_status")
+  productTitle      String?         @map("product_title")
+  packagingUnit     String?         @map("packaging_unit")
+  checkMethod       String          @map("check_method")
+  statusCode        Int?            @map("status_code")
+  errorMessage      String?         @map("error_message")
+  sourceUrl         String          @map("source_url")
+  isSuccess         Boolean         @default(true) @map("is_success")
+  createdAt         DateTime        @default(now()) @map("created_at")
   competitorOffer   CompetitorOffer @relation(fields: [competitorOfferId], references: [id], onDelete: Cascade)
 
   @@index([checkedAt])
+  @@map("price_checks")
 }
 
 model PriceHistory {
   id                String          @id @default(cuid())
-  competitorOfferId String
-  recordedAt        DateTime
+  competitorOfferId String          @map("competitor_offer_id")
+  recordedAt        DateTime        @map("recorded_at")
   price             Decimal
-  normalizedPrice   Decimal?
+  normalizedPrice   Decimal?        @map("normalized_price")
   currency          String
-  stockStatus       String?
+  stockStatus       String?         @map("stock_status")
   source            String
-  createdAt         DateTime        @default(now())
+  createdAt         DateTime        @default(now()) @map("created_at")
   competitorOffer   CompetitorOffer @relation(fields: [competitorOfferId], references: [id], onDelete: Cascade)
 
   @@index([recordedAt])
+  @@map("price_history")
 }
 
 model OwnPriceHistory {
   id         String   @id @default(cuid())
-  productId  String
-  recordedAt DateTime
+  productId  String   @map("product_id")
+  recordedAt DateTime @map("recorded_at")
   price      Decimal
   currency   String
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now()) @map("created_at")
   product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([recordedAt])
+  @@map("own_price_history")
 }
 
 model Alert {
   id                String           @id @default(cuid())
   type              String
-  productId         String?
-  competitorOfferId String?
+  productId         String?          @map("product_id")
+  competitorOfferId String?          @map("competitor_offer_id")
   title             String
   message           String
   severity          AlertSeverity
-  isRead            Boolean          @default(false)
-  createdAt         DateTime         @default(now())
+  isRead            Boolean          @default(false) @map("is_read")
+  createdAt         DateTime         @default(now()) @map("created_at")
   product           Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
   competitorOffer   CompetitorOffer? @relation(fields: [competitorOfferId], references: [id], onDelete: SetNull)
 
   @@index([severity])
+  @@map("alerts")
 }
 
 model AlertRule {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
   type           String
   threshold      Decimal?
-  isActive       Boolean      @default(true)
-  countryId      String?
-  productGroupId String?
-  competitorId   String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  country        Country?     @relation(fields: [countryId], references: [id], onDelete: SetNull)
+  isActive       Boolean       @default(true) @map("is_active")
+  countryId      String?       @map("country_id")
+  productGroupId String?       @map("product_group_id")
+  competitorId   String?       @map("competitor_id")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  country        Country?      @relation(fields: [countryId], references: [id], onDelete: SetNull)
   productGroup   ProductGroup? @relation(fields: [productGroupId], references: [id], onDelete: SetNull)
-  competitor     Competitor?  @relation(fields: [competitorId], references: [id], onDelete: SetNull)
+  competitor     Competitor?   @relation(fields: [competitorId], references: [id], onDelete: SetNull)
+
+  @@map("alert_rules")
 }
 
 model ImportTask {
@@ -261,37 +279,43 @@ model ImportTask {
   filename      String
   format        ImportFormat
   status        ImportStatus @default(PENDING)
-  totalRows     Int?
-  processedRows Int?
-  errorRows     Int?
+  totalRows     Int?         @map("total_rows")
+  processedRows Int?         @map("processed_rows")
+  errorRows     Int?         @map("error_rows")
   errors        Json?
   warnings      Json?
-  importedBy    String
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  importedBy    String       @map("imported_by")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
   user          User         @relation("ImportTaskUser", fields: [importedBy], references: [id], onDelete: Restrict)
+
+  @@map("import_tasks")
 }
 
 model Report {
   id          String       @id @default(cuid())
   title       String
-  weekStart   DateTime
-  weekEnd     DateTime
+  weekStart   DateTime     @map("week_start")
+  weekEnd     DateTime     @map("week_end")
   status      ReportStatus @default(PENDING)
   content     Json?
-  generatedAt DateTime?
-  createdAt   DateTime     @default(now())
+  generatedAt DateTime?    @map("generated_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  @@map("reports")
 }
 
 model AuditLog {
   id         String   @id @default(cuid())
-  userId     String
+  userId     String   @map("user_id")
   action     String
-  entityType String
-  entityId   String
-  oldValue   Json?
-  newValue   Json?
-  ipAddress  String
-  createdAt  DateTime @default(now())
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  oldValue   Json?    @map("old_value")
+  newValue   Json?    @map("new_value")
+  ipAddress  String   @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
   user       User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("audit_logs")
 }

@@ -3,11 +3,32 @@ import Link from 'next/link'
 import { MatchStatus } from '@/generated/prisma/client'
 import { DataTable } from '@/components/DataTable'
 import { StatCard } from '@/components/StatCard'
-import { getDashboardSnapshot } from '@/lib/dashboard'
+import { getDashboardSnapshot, type DashboardSnapshot } from '@/lib/dashboard'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
 
 function readParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
+}
+
+const emptySnapshot: DashboardSnapshot = {
+  filterOptions: { countries: [], productGroups: [], competitors: [] },
+  metrics: [],
+  kpis: {
+    monitoredProducts: 0,
+    activeOffers: 0,
+    validMatches: 0,
+    reviewMatches: 0,
+    withoutCompetitorPrice: 0,
+    engelsLowest: 0,
+    engelsHigher: 0,
+    averagePriceIndex: null,
+    failedChecks: 0,
+    staleData: 0,
+  },
+  biggestIncreases: [],
+  biggestDecreases: [],
+  failedChecks: [],
+  staleOffers: [],
 }
 
 export default async function DashboardPage({
@@ -23,10 +44,25 @@ export default async function DashboardPage({
     matchStatus: (readParam(params.matchstatus) as MatchStatus | undefined) ?? '',
   }
 
-  const snapshot = await getDashboardSnapshot(filters)
+  let snapshot = emptySnapshot
+  let dbError: string | null = null
+
+  try {
+    snapshot = await getDashboardSnapshot(filters)
+  } catch (err) {
+    dbError = err instanceof Error ? err.message : 'Onbekende fout bij het ophalen van data.'
+  }
 
   return (
     <div className="space-y-8">
+      {dbError && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          <p className="font-semibold">Databaseverbinding mislukt</p>
+          <p className="mt-1">{dbError}</p>
+          <p className="mt-2 text-xs text-rose-500">De getoonde waarden zijn leeg. Probeer de pagina opnieuw te laden.</p>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Overzicht</p>
