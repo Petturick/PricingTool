@@ -1,6 +1,6 @@
 # Engels Group Prijsmonitoring
 
-Professioneel prijsmonitoring- en concurrentiedashboard voor Engels Group, gebouwd met Next.js 16, Prisma 7 en PostgreSQL.
+Professioneel prijsmonitoring- en concurrentiedashboard voor Engels Group, gebouwd met Next.js 16, Prisma 7 en SQLite.
 
 ## Functionaliteit
 
@@ -65,7 +65,7 @@ npx prisma db seed
 npm run dev
 ```
 
-De productieomgeving staat op [https://pricingtool.bolt.host/](https://pricingtool.bolt.host/). Voor lokale ontwikkeling opent u `http://localhost:3000`.
+Open [http://localhost:3000](http://localhost:3000) in uw browser.
 
 ---
 
@@ -74,16 +74,14 @@ De productieomgeving staat op [https://pricingtool.bolt.host/](https://pricingto
 Kopieer `.env.example` naar `.env` en vul de volgende variabelen in:
 
 ```env
-# Bolt PostgreSQL-verbinding, uitsluitend instellen als geheim in Bolt
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require"
+# Locatie van de SQLite-database
+DATABASE_URL="file:./dev.db"
 
-# Willekeurige geheime sleutel voor sessies, minimaal 32 tekens
-AUTH_SECRET="change-this-to-a-random-secret"
+# Willekeurige geheime sleutel voor sessies (minimaal 32 tekens)
+NEXTAUTH_SECRET="change-this-to-a-random-secret"
 
-# Eén vaste openbare productie-URL
-AUTH_URL="https://pricingtool.bolt.host"
-NEXTAUTH_URL="https://pricingtool.bolt.host"
-NEXT_PUBLIC_APP_URL="https://pricingtool.bolt.host"
+# Basis-URL van de applicatie
+NEXTAUTH_URL="http://localhost:3000"
 ```
 
 > **Opmerking:** Sla `.env` nooit op in versiebeheer. Het bestand staat al in `.gitignore`.
@@ -235,7 +233,7 @@ prisma/
 |-----------------|------------------------------------|
 | Framework       | Next.js 16 (App Router)            |
 | Taal            | TypeScript                         |
-| Database        | PostgreSQL via Prisma 7            |
+| Database        | SQLite via Prisma 7                |
 | Styling         | Tailwind CSS 4                     |
 | Grafieken       | Recharts                           |
 | Validatie       | Zod 4                              |

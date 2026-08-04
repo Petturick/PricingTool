@@ -3,46 +3,8 @@ import Link from 'next/link'
 import { MatchStatus } from '@/generated/prisma/client'
 import { DataTable } from '@/components/DataTable'
 import { StatCard } from '@/components/StatCard'
+import { getDashboardSnapshot } from '@/lib/dashboard'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
-
-type DashboardSnapshot = Awaited<ReturnType<typeof import('@/lib/dashboard').getDashboardSnapshot>>
-
-function createEmptySnapshot(): DashboardSnapshot {
-  return {
-    filterOptions: { countries: [], productGroups: [], competitors: [] },
-    metrics: [],
-    kpis: {
-      monitoredProducts: 0,
-      activeOffers: 0,
-      validMatches: 0,
-      reviewMatches: 0,
-      withoutCompetitorPrice: 0,
-      engelsLowest: 0,
-      engelsHigher: 0,
-      averagePriceIndex: null,
-      failedChecks: 0,
-      staleData: 0,
-    },
-    biggestIncreases: [],
-    biggestDecreases: [],
-    failedChecks: [],
-    staleOffers: [],
-  }
-}
-
-async function loadDashboardSnapshot(filters: Parameters<typeof import('@/lib/dashboard').getDashboardSnapshot>[0]) {
-  if (!process.env.DATABASE_URL) {
-    return { snapshot: createEmptySnapshot(), databaseAvailable: false }
-  }
-
-  try {
-    const { getDashboardSnapshot } = await import('@/lib/dashboard')
-    return { snapshot: await getDashboardSnapshot(filters), databaseAvailable: true }
-  } catch (error) {
-    console.error('Dashboard database connection failed', error)
-    return { snapshot: createEmptySnapshot(), databaseAvailable: false }
-  }
-}
 
 function readParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
@@ -61,7 +23,7 @@ export default async function DashboardPage({
     matchStatus: (readParam(params.matchstatus) as MatchStatus | undefined) ?? '',
   }
 
-  const { snapshot, databaseAvailable } = await loadDashboardSnapshot(filters)
+  const snapshot = await getDashboardSnapshot(filters)
 
   return (
     <div className="space-y-8">
@@ -69,7 +31,7 @@ export default async function DashboardPage({
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Overzicht</p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-950">Dashboard prijsmonitoring</h1>
-          <p className="mt-2 max-w-3xl text-base text-slate-600">Live overzicht van productdekking, marktpositie en prijscontroles voor Engels Group.</p>
+          <p className="mt-2 max-w-3xl text-sm text-slate-600">Live overzicht van productdekking, marktpositie en prijscontroles voor Engels Group.</p>
         </div>
         <form className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-4">
           <select name="land" defaultValue={filters.countryId} className="rounded-xl border border-slate-300 px-3 py-2 text-sm">
@@ -99,13 +61,6 @@ export default async function DashboardPage({
           <button className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white md:col-span-4">Filters toepassen</button>
         </form>
       </div>
-
-      {!databaseAvailable && (
-        <section className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-base text-amber-950" role="status">
-          <p className="font-semibold">Dashboard is beschikbaar, de databaseverbinding wordt nog geactiveerd.</p>
-          <p className="mt-1 text-amber-800">Navigatie en schermen blijven zichtbaar. Live prijsdata verschijnt automatisch zodra de productieverbinding actief is.</p>
-        </section>
-      )}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard title="Aantal gemonitorde producten" value={formatNumber(snapshot.kpis.monitoredProducts)} />

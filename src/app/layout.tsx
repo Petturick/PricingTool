@@ -1,24 +1,11 @@
 import type { Metadata } from 'next'
 import { Sidebar } from '@/components/Sidebar'
-import { appUrl } from '@/lib/app-url'
 import './globals.css'
 
 
 export const metadata: Metadata = {
-  metadataBase: appUrl,
   title: 'Engels Group prijsmonitoring',
   description: 'Dashboard voor prijsmonitoring en concurrentie-intelligentie van Engels Group.',
-  alternates: {
-    canonical: '/',
-  },
-  openGraph: {
-    title: 'Engels Group prijsmonitoring',
-    description: 'Dashboard voor prijsmonitoring en concurrentie-intelligentie van Engels Group.',
-    url: '/',
-    siteName: 'Engels Group prijsmonitoring',
-    locale: 'nl_NL',
-    type: 'website',
-  },
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
