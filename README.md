@@ -1,6 +1,6 @@
 # Engels Group Prijsmonitoring
 
-Professioneel prijsmonitoring- en concurrentiedashboard voor Engels Group, gebouwd met Next.js 16, Prisma 7 en SQLite.
+Professioneel prijsmonitoring- en concurrentiedashboard voor Engels Group, gebouwd met Next.js 16, Prisma 7 en PostgreSQL.
 
 ## Functionaliteit
 
@@ -74,8 +74,12 @@ Open [http://localhost:3000](http://localhost:3000) in uw browser.
 Kopieer `.env.example` naar `.env` en vul de volgende variabelen in:
 
 ```env
-# Locatie van de SQLite-database
-DATABASE_URL="file:./dev.db"
+# Bolt PostgreSQL database. Een directe Supabase URL wordt in de applicatie
+# automatisch omgezet naar de IPv4 geschikte Supavisor pooler.
+DATABASE_URL="postgresql://USER:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres"
+
+# Regio van de bestaande Bolt database
+SUPABASE_DB_REGION="eu-west-1"
 
 # Willekeurige geheime sleutel voor sessies (minimaal 32 tekens)
 NEXTAUTH_SECRET="change-this-to-a-random-secret"
@@ -233,7 +237,7 @@ prisma/
 |-----------------|------------------------------------|
 | Framework       | Next.js 16 (App Router)            |
 | Taal            | TypeScript                         |
-| Database        | SQLite via Prisma 7                |
+| Database        | PostgreSQL via Prisma 7            |
 | Styling         | Tailwind CSS 4                     |
 | Grafieken       | Recharts                           |
 | Validatie       | Zod 4                              |
