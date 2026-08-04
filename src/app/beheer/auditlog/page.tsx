@@ -1,12 +1,16 @@
 export const dynamic = 'force-dynamic'
 import { DataTable } from '@/components/DataTable'
+import { DatabaseNotice } from '@/components/DatabaseNotice'
 import { formatDate } from '@/lib/format'
 import { prisma } from '@/lib/prisma'
+import { safeDatabaseQuery } from '@/lib/safe-database'
 
 export default async function AuditlogPage() {
-  const logs = await prisma.auditLog.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' }, take: 100 })
+  const result = await safeDatabaseQuery(() => prisma.auditLog.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' }, take: 100 }), [])
+  const logs = result.data
   return (
     <div className="space-y-6">
+      {!result.available && <DatabaseNotice />}
       <h1 className="text-3xl font-semibold">Auditlog</h1>
       <DataTable
         columns={[

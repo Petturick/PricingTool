@@ -7,6 +7,8 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --import tsx --test src/**/*.test.ts",
+    "check:database": "tsx scripts/check-database.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

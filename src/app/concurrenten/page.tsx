@@ -1,14 +1,18 @@
 export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { DataTable } from '@/components/DataTable'
+import { DatabaseNotice } from '@/components/DatabaseNotice'
 import { deriveCompetitorMetrics, getCompetitorsOverview } from '@/lib/dashboard'
 import { formatDate, formatNumber } from '@/lib/format'
+import { safeDatabaseQuery } from '@/lib/safe-database'
 
 export default async function ConcurrentenPage() {
-  const competitors = await getCompetitorsOverview()
+  const result = await safeDatabaseQuery(() => getCompetitorsOverview(), [])
+  const competitors = result.data
 
   return (
     <div className="space-y-6">
+      {!result.available && <DatabaseNotice />}
       <div>
         <h1 className="text-3xl font-semibold">Concurrenten</h1>
         <p className="mt-2 text-sm text-slate-600">Per markt inzicht in gekoppelde producten, prijsdekking en kwaliteit van de prijscontroles.</p>

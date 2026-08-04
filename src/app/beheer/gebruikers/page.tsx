@@ -2,15 +2,20 @@ export const dynamic = 'force-dynamic'
 import { UserRole } from '@/generated/prisma/client'
 import { deleteUserAction, saveUserAction } from '@/app/actions/adminActions'
 import { DataTable } from '@/components/DataTable'
+import { DatabaseNotice } from '@/components/DatabaseNotice'
 import { formatDate } from '@/lib/format'
 import { prisma } from '@/lib/prisma'
+import { safeDatabaseQuery } from '@/lib/safe-database'
 
 export default async function GebruikersBeheerPage() {
-  const users = await prisma.user.findMany({ orderBy: { createdAt: 'asc' } })
+  const result = await safeDatabaseQuery(() => prisma.user.findMany({ orderBy: { createdAt: 'asc' } }), [])
+  const users = result.data
   return (
     <div className="space-y-6">
+      {!result.available && <DatabaseNotice />}
       <h1 className="text-3xl font-semibold">Gebruikers beheer</h1>
       <form action={saveUserAction} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-4">
+        <fieldset disabled={!result.available} className="contents disabled:opacity-50">
         <input name="email" placeholder="E-mailadres" className="rounded-xl border border-slate-300 px-3 py-2 text-sm" required />
         <input name="name" placeholder="Naam" className="rounded-xl border border-slate-300 px-3 py-2 text-sm" required />
         <input name="password" type="password" placeholder="Wachtwoord" className="rounded-xl border border-slate-300 px-3 py-2 text-sm" required />
@@ -18,6 +23,7 @@ export default async function GebruikersBeheerPage() {
           {Object.values(UserRole).map((role) => <option key={role} value={role}>{role}</option>)}
         </select>
         <button className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white md:col-span-4">Gebruiker opslaan</button>
+        </fieldset>
       </form>
       <DataTable
         columns={[

@@ -45,21 +45,21 @@ export default async function DashboardPage({
   }
 
   let snapshot = emptySnapshot
-  let dbError: string | null = null
+  let databaseAvailable = true
 
   try {
     snapshot = await getDashboardSnapshot(filters)
-  } catch (err) {
-    dbError = err instanceof Error ? err.message : 'Onbekende fout bij het ophalen van data.'
+  } catch (error) {
+    console.error('Dashboard database query failed', error)
+    databaseAvailable = false
   }
 
   return (
     <div className="space-y-8">
-      {dbError && (
+      {!databaseAvailable && (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
           <p className="font-semibold">Databaseverbinding mislukt</p>
-          <p className="mt-1">{dbError}</p>
-          <p className="mt-2 text-xs text-rose-500">De getoonde waarden zijn leeg. Probeer de pagina opnieuw te laden.</p>
+          <p className="mt-1">Het dashboard blijft beschikbaar, maar toont geen waarden totdat de verbinding is hersteld.</p>
         </div>
       )}
 

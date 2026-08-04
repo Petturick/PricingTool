@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { resolveDatabaseConnection } from '../src/lib/database-url'
 import bcrypt from 'bcryptjs'
 import {
   AlertSeverity,
@@ -12,7 +13,7 @@ import {
   UserRole,
 } from '../src/generated/prisma/client'
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL ?? '' })
+const adapter = new PrismaPg({ connectionString: resolveDatabaseConnection().connectionString })
 const prisma = new PrismaClient({ adapter })
 
 function normalizePriceSeed(price: Prisma.Decimal, vatRate: Prisma.Decimal, currency: string) {
