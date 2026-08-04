@@ -1,8 +1,10 @@
 export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { DataTable } from '@/components/DataTable'
+import { DatabaseNotice } from '@/components/DatabaseNotice'
 import { deriveProductMetrics, getFilterOptions, getFilteredProducts } from '@/lib/dashboard'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
+import { safeDatabaseQuery } from '@/lib/safe-database'
 
 function readParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
@@ -19,13 +21,21 @@ export default async function ProductenPage({ searchParams }: { searchParams: Pr
   const page = Math.max(Number(readParam(params.pagina) ?? '1') || 1, 1)
   const pageSize = 12
 
-  const [products, filterOptions] = await Promise.all([getFilteredProducts(filters), getFilterOptions()])
+  const result = await safeDatabaseQuery(
+    async () => {
+      const [products, filterOptions] = await Promise.all([getFilteredProducts(filters), getFilterOptions()])
+      return { products, filterOptions }
+    },
+    { products: [], filterOptions: { countries: [], productGroups: [], competitors: [] } },
+  )
+  const { products, filterOptions } = result.data
   const rows = products.map((product) => deriveProductMetrics(product, filters))
   const paged = rows.slice((page - 1) * pageSize, page * pageSize)
   const totalPages = Math.max(Math.ceil(rows.length / pageSize), 1)
 
   return (
     <div className="space-y-6">
+      {!result.available && <DatabaseNotice />}
       <div>
         <h1 className="text-3xl font-semibold">Producten</h1>
         <p className="mt-2 text-sm text-slate-600">Alle gemonitorde artikelen met actuele marktpositie, verschillen en trends.</p>
