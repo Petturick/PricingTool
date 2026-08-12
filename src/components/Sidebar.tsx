@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/format'
 
-type IconName = 'dashboard' | 'products' | 'competitors' | 'matches' | 'alerts' | 'strategy' | 'reports' | 'import' | 'integrations' | 'settings'
+type IconName = 'dashboard' | 'products' | 'competitors' | 'matches' | 'alerts' | 'strategy' | 'reports' | 'feeds' | 'import' | 'integrations' | 'settings'
 
 const groups: Array<{ label: string; items: Array<{ href: string; label: string; icon: IconName }> }> = [
   { label: 'Prijsmonitoring', items: [
@@ -19,6 +19,7 @@ const groups: Array<{ label: string; items: Array<{ href: string; label: string;
     { href: '/rapportages', label: 'Rapportages', icon: 'reports' },
   ] },
   { label: 'Data en beheer', items: [
+    { href: '/feeds', label: 'Feeds', icon: 'feeds' },
     { href: '/import', label: 'Import', icon: 'import' },
     { href: '/integraties', label: 'Integraties', icon: 'integrations' },
     { href: '/beheer', label: 'Beheer', icon: 'settings' },
@@ -34,6 +35,7 @@ function NavIcon({ name }: { name: IconName }) {
   if (name === 'alerts') return <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 6 2 8H4c0-2 2-2 2-8Z" /><path d="M10 20h4" /></svg>
   if (name === 'strategy') return <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M4 18V6M4 18h16" /><path d="m7 15 4-4 3 2 5-6" /></svg>
   if (name === 'reports') return <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M6 3h9l3 3v15H6z" /><path d="M9 11h6M9 15h6M9 7h3" /></svg>
+  if (name === 'feeds') return <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M5 18a1 1 0 1 0 0 .01M4 11a9 9 0 0 1 9 9M4 5a15 15 0 0 1 15 15" /><path d="M14 6h5v5" /></svg>
   if (name === 'import') return <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 3v12" /><path d="m8 7 4-4 4 4" /><path d="M5 14v6h14v-6" /></svg>
   if (name === 'integrations') return <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M8 7V3M16 7V3M7 7h10v4a5 5 0 0 1-5 5v5" /><path d="M9 21h6" /></svg>
   return <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L14.5 3h-5l-.3 3a8 8 0 0 0-1.7 1L5 6 3 9.5 5.1 11a7 7 0 0 0 0 2L3 14.5 5 18l2.5-1a8 8 0 0 0 1.7 1l.3 3h5l.3-3a8 8 0 0 0 1.7-1l2.5 1 2-3.5-2.1-1.5c.1-.3.1-.7.1-1Z" /></svg>
