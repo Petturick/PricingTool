@@ -43,6 +43,29 @@ enum ReportStatus {
   FAILED
 }
 
+enum FeedSourceType {
+  FILE
+  URL
+  API
+  SYNTRX
+}
+
+enum FeedFormat {
+  CSV
+  XLSX
+  XLS
+  JSON
+  XML
+  API
+}
+
+enum FeedSyncStatus {
+  IDLE
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
 model User {
   id              String         @id @default(cuid())
   email           String         @unique
@@ -318,4 +341,103 @@ model AuditLog {
   user       User     @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@map("audit_logs")
+}
+
+model FeedSource {
+  id                 String              @id @default(cuid())
+  sourceKey          String              @unique @map("source_key")
+  name               String
+  sourceType         FeedSourceType      @map("source_type")
+  format             FeedFormat?
+  url                String?
+  countryCode        String              @default("GLOBAL") @map("country_code")
+  isActive           Boolean             @default(true) @map("is_active")
+  isMainFeed         Boolean             @default(true) @map("is_main_feed")
+  syncFrequencyHours Int                 @default(24) @map("sync_frequency_hours")
+  lastRunAt          DateTime?           @map("last_run_at")
+  lastRunStatus      FeedSyncStatus      @default(IDLE) @map("last_run_status")
+  lastItemCount      Int                 @default(0) @map("last_item_count")
+  lastErrorCount     Int                 @default(0) @map("last_error_count")
+  lastWarningCount   Int                 @default(0) @map("last_warning_count")
+  syncError          String?             @map("sync_error")
+  config             Json?
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  columns            FeedColumnMapping[]
+  items              FeedItem[]
+  runs               FeedSyncRun[]
+  productLinks       ProductFeedLink[]
+
+  @@map("feed_sources")
+}
+
+model FeedColumnMapping {
+  id           String     @id @default(cuid())
+  feedSourceId String     @map("feed_source_id")
+  sourceColumn String     @map("source_column")
+  targetField  String?    @map("target_field")
+  dataType     String?    @map("data_type")
+  sampleValue  String?    @map("sample_value")
+  isActive     Boolean    @default(true) @map("is_active")
+  position     Int        @default(0)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  feedSource   FeedSource @relation(fields: [feedSourceId], references: [id], onDelete: Cascade)
+
+  @@unique([feedSourceId, sourceColumn])
+  @@map("feed_column_mappings")
+}
+
+model FeedItem {
+  id                String     @id @default(cuid())
+  feedSourceId      String     @map("feed_source_id")
+  externalKey       String?    @map("external_key")
+  rowIndex          Int        @map("row_index")
+  rawData           Json       @map("raw_data")
+  mappedData        Json?      @map("mapped_data")
+  status            String     @default("READY")
+  errorMessage      String?    @map("error_message")
+  importedProductId String?    @map("imported_product_id")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+  feedSource        FeedSource @relation(fields: [feedSourceId], references: [id], onDelete: Cascade)
+
+  @@unique([feedSourceId, rowIndex])
+  @@index([feedSourceId, externalKey])
+  @@map("feed_items")
+}
+
+model FeedSyncRun {
+  id           String         @id @default(cuid())
+  feedSourceId String         @map("feed_source_id")
+  status       FeedSyncStatus
+  startedAt    DateTime       @default(now()) @map("started_at")
+  completedAt  DateTime?      @map("completed_at")
+  itemCount    Int            @default(0) @map("item_count")
+  errorCount   Int            @default(0) @map("error_count")
+  warningCount Int            @default(0) @map("warning_count")
+  message      String?
+  details      Json?
+  createdAt    DateTime       @default(now()) @map("created_at")
+  feedSource   FeedSource     @relation(fields: [feedSourceId], references: [id], onDelete: Cascade)
+
+  @@index([startedAt])
+  @@map("feed_sync_runs")
+}
+
+model ProductFeedLink {
+  id              String     @id @default(cuid())
+  feedSourceId    String     @map("feed_source_id")
+  productId       String     @map("product_id")
+  externalKey     String     @map("external_key")
+  sourceUpdatedAt DateTime?  @map("source_updated_at")
+  lastSeenAt      DateTime   @default(now()) @map("last_seen_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  feedSource      FeedSource @relation(fields: [feedSourceId], references: [id], onDelete: Cascade)
+
+  @@unique([feedSourceId, externalKey])
+  @@unique([feedSourceId, productId])
+  @@index([productId])
+  @@map("product_feed_links")
 }
