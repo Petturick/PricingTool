@@ -7,43 +7,23 @@ type Column<T> = {
   render?: (row: T) => ReactNode
 }
 
-export function DataTable<T extends Record<string, ReactNode | string | number | null | undefined>>({
-  columns,
-  rows,
-  emptyText = 'Geen gegevens beschikbaar.',
-}: {
-  columns: Array<Column<T>>
-  rows: T[]
-  emptyText?: string
-}) {
+export function DataTable<T extends Record<string, ReactNode | string | number | null | undefined>>({ columns, rows, emptyText = 'Geen gegevens beschikbaar.' }: { columns: Array<Column<T>>; rows: T[]; emptyText?: string }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-slate-50 text-left text-slate-500">
+        <table className="min-w-full divide-y divide-[var(--border)] text-[12px]">
+          <thead className="bg-[#fbfcfe] text-left text-[#7c8597]">
             <tr>
-              {columns.map((column) => (
-                <th key={String(column.key)} className={`px-4 py-3 font-medium ${column.className ?? ''}`}>
-                  {column.header}
-                </th>
-              ))}
+              {columns.map((column) => <th key={String(column.key)} className={`px-4 py-3 font-semibold ${column.className ?? ''}`}>{column.header}</th>)}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-[#eef0f4]">
             {rows.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length} className="px-4 py-8 text-center text-slate-500">
-                  {emptyText}
-                </td>
-              </tr>
+              <tr><td colSpan={columns.length} className="px-4 py-9 text-center text-[#8b95a7]">{emptyText}</td></tr>
             ) : (
               rows.map((row, index) => (
-                <tr key={index} className="align-top text-slate-700">
-                  {columns.map((column) => (
-                    <td key={String(column.key)} className={`px-4 py-3 ${column.className ?? ''}`}>
-                      {column.render ? column.render(row) : row[column.key as keyof T]}
-                    </td>
-                  ))}
+                <tr key={index} className="align-top text-[#4b5364] transition-colors hover:bg-[#fcfcfd]">
+                  {columns.map((column) => <td key={String(column.key)} className={`px-4 py-3.5 ${column.className ?? ''}`}>{column.render ? column.render(row) : row[column.key as keyof T]}</td>)}
                 </tr>
               ))
             )}
