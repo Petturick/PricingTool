@@ -1,5 +1,6 @@
 const DIRECT_SUPABASE_HOST = /^db\.([a-z0-9]+)\.supabase\.co$/i
 
+const DEFAULT_SUPABASE_PROJECT_ID = 'xmedaatjwxkmwkjmwuuz'
 const DEFAULT_SUPABASE_REGION = 'eu-west-2'
 
 export type DatabaseConnectionInfo = {
@@ -19,14 +20,16 @@ function buildSupavisorConnection(projectId: string, password: string, region: s
 
 /**
  * Bolt reserves custom secret names starting with SUPABASE_. Prefer the
- * PRICING_DB_* names there. The older SUPABASE_* variables remain supported
- * as backwards-compatible fallbacks for GitHub Actions and other runtimes.
- * DATABASE_URL remains available as a final fallback.
+ * PRICING_DB_* names there. The PricingTool Supabase project and region are
+ * safe non-secret defaults, so Bolt only needs PRICING_DB_PASSWORD at runtime.
+ * The older SUPABASE_* variables remain supported as backwards-compatible
+ * fallbacks for GitHub Actions and other runtimes. DATABASE_URL remains
+ * available as a final fallback.
  */
 export function resolveDatabaseConnection(
   rawConnectionString = process.env.DATABASE_URL ?? '',
   region = process.env.PRICING_DB_REGION ?? process.env.SUPABASE_DB_REGION ?? DEFAULT_SUPABASE_REGION,
-  projectId = process.env.PRICING_DB_PROJECT_ID ?? process.env.SUPABASE_PROJECT_ID ?? '',
+  projectId = process.env.PRICING_DB_PROJECT_ID ?? process.env.SUPABASE_PROJECT_ID ?? DEFAULT_SUPABASE_PROJECT_ID,
   dbPassword = process.env.PRICING_DB_PASSWORD ?? process.env.SUPABASE_DB_PASSWORD ?? '',
 ): DatabaseConnectionInfo {
   const cleanProjectId = projectId.trim()
