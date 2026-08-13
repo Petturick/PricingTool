@@ -11,7 +11,7 @@ const ALLOWED_ROLES = new Set(['admin', 'manager', 'import_manager'])
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info',
+  'Access-Control-Allow-Headers': 'authorization, content-type, x-client-info, x-syntrx-access-token',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
@@ -19,9 +19,17 @@ function json(body: unknown, init?: ResponseInit) {
   return NextResponse.json(body, { ...init, headers: { ...corsHeaders, ...(init?.headers ?? {}) } })
 }
 
+function getSyntrxAuthorization(request: Request) {
+  const forwardedToken = request.headers.get('x-syntrx-access-token')?.trim()
+  if (forwardedToken) return `Bearer ${forwardedToken}`
+
+  const authorization = request.headers.get('authorization')?.trim() ?? ''
+  return authorization.toLowerCase().startsWith('bearer ') ? authorization : ''
+}
+
 async function validateSyntrxSession(request: Request) {
-  const authorization = request.headers.get('authorization') ?? ''
-  if (!authorization.toLowerCase().startsWith('bearer ')) return { ok: false as const, status: 401, message: 'Syntrx sessie ontbreekt.' }
+  const authorization = getSyntrxAuthorization(request)
+  if (!authorization) return { ok: false as const, status: 401, message: 'Syntrx sessie ontbreekt.' }
 
   const userResponse = await fetch(`${SYNTRX_URL}/auth/v1/user`, {
     headers: { apikey: SYNTRX_PUBLISHABLE_KEY, Authorization: authorization },
