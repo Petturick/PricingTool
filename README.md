@@ -37,7 +37,7 @@ Kunststof bakken, Pallets, Palletboxen, Afvalcontainers, Lekbakken, Stellingen, 
 
 ### Vereisten
 
-- Node.js 20 of hoger
+- Node.js 22
 - npm 10 of hoger
 
 ### Stappen
@@ -71,24 +71,26 @@ Open [http://localhost:3000](http://localhost:3000) in uw browser.
 
 ## Configuratie
 
-Kopieer `.env.example` naar `.env` en vul de volgende variabelen in:
+Kopieer `.env.example` naar `.env` en vul minimaal de volgende variabelen in. De applicatie geeft de voorkeur aan het Supabase project-ID plus databasewachtwoord en bouwt daar automatisch een Supavisor poolerverbinding van.
 
 ```env
-# Bolt PostgreSQL database. Een directe Supabase URL wordt in de applicatie
-# automatisch omgezet naar de IPv4 geschikte Supavisor pooler.
-DATABASE_URL="postgresql://USER:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres"
+SUPABASE_PROJECT_ID="xmedaatjwxkmwkjmwuuz"
+SUPABASE_DB_REGION="eu-west-2"
+SUPABASE_DB_PASSWORD="your-database-password"
 
-# Regio van de bestaande Bolt database
-SUPABASE_DB_REGION="eu-west-1"
-
-# Willekeurige geheime sleutel voor sessies (minimaal 32 tekens)
-NEXTAUTH_SECRET="change-this-to-a-random-secret"
-
-# Basis-URL van de applicatie
+NEXTAUTH_SECRET="change-this-to-a-random-secret-of-at-least-32-characters"
 NEXTAUTH_URL="http://localhost:3000"
 ```
 
-> **Opmerking:** Sla `.env` nooit op in versiebeheer. Het bestand staat al in `.gitignore`.
+`DATABASE_URL` blijft beschikbaar als alternatieve PostgreSQL-verbinding wanneer geen combinatie van `SUPABASE_PROJECT_ID` en `SUPABASE_DB_PASSWORD` is ingesteld.
+
+> **Opmerking:** Sla `.env` nooit op in versiebeheer. Alleen `.env.example` hoort in GitHub en bevat geen wachtwoorden of andere geheime waarden.
+
+### Bolt preview
+
+De ontwikkelserver luistert expliciet op `0.0.0.0:3000`, Node 22 is vastgelegd in `package.json`, `.nvmrc` en `netlify.toml`, en de preview kan ook openen wanneer de database nog niet is ingesteld. Voeg voor volledige functionaliteit de runtimevariabelen uit `.env.example` ook toe aan de environment/secrets van het Bolt-project.
+
+Gebruik `/api/health` om de runtime te controleren. Het endpoint blijft beschikbaar wanneer de database ontbreekt of tijdelijk niet bereikbaar is en retourneert afzonderlijk de applicatie- en databasestatus zonder credentials te tonen.
 
 ---
 
@@ -188,10 +190,11 @@ Richtlijnen:
 
 | Commando                     | Beschrijving                          |
 |------------------------------|---------------------------------------|
-| `npm run dev`                | Start de ontwikkelserver              |
+| `npm run dev`                | Start de ontwikkelserver op poort 3000 |
 | `npm run build`              | Bouw de productieversie               |
-| `npm run start`              | Start de productieserver              |
+| `npm run start`              | Start de productieserver               |
 | `npm run lint`               | Controleer code op stijlfouten        |
+| `npm run check:database`     | Controleer de databaseverbinding      |
 | `npx prisma migrate dev`     | Maak en voer een nieuwe migratie uit  |
 | `npx prisma migrate deploy`  | Voer migraties uit (productie)        |
 | `npx prisma db seed`         | Laad voorbeeldgegevens                |
