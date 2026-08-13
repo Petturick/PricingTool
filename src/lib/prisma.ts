@@ -6,7 +6,7 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient }
 
 export class DatabaseNotConfiguredError extends Error {
   constructor() {
-    super('Database is not configured. Add SUPABASE_DB_PASSWORD or DATABASE_URL to the runtime environment.')
+    super('Database is not configured. Add PRICING_DB_PASSWORD with PRICING_DB_PROJECT_ID, or DATABASE_URL, to the runtime environment.')
     this.name = 'DatabaseNotConfiguredError'
   }
 }
