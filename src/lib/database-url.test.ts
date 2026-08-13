@@ -12,10 +12,18 @@ test('prefers explicit Supabase project configuration for production', () => {
   const url = new URL(result.connectionString)
   assert.equal(result.mode, 'supavisor')
   assert.equal(url.hostname, 'aws-0-eu-west-2.pooler.supabase.com')
-  assert.equal(url.port, '6543')
+  assert.equal(url.port, '5432')
   assert.equal(decodeURIComponent(url.username), 'postgres.xmedaatjwxkmwkjmwuuz')
   assert.equal(decodeURIComponent(url.password), 'secret with spaces')
   assert.equal(url.searchParams.get('sslmode'), 'require')
+  assert.equal(url.searchParams.get('pgbouncer'), null)
+})
+
+test('supports transaction pooling only when explicitly requested', () => {
+  const result = resolveDatabaseConnection('', 'eu-west-2', 'xmedaatjwxkmwkjmwuuz', 'secret', '6543')
+  const url = new URL(result.connectionString)
+  assert.equal(url.port, '6543')
+  assert.equal(url.searchParams.get('pgbouncer'), 'true')
 })
 
 test('converts a direct Supabase URL to the configured pooler region', () => {
@@ -28,6 +36,7 @@ test('converts a direct Supabase URL to the configured pooler region', () => {
   const url = new URL(result.connectionString)
   assert.equal(result.mode, 'supavisor')
   assert.equal(url.hostname, 'aws-0-eu-west-1.pooler.supabase.com')
+  assert.equal(url.port, '5432')
   assert.equal(decodeURIComponent(url.username), 'postgres.fdnkzcpqyjajjawrwihl')
 })
 
