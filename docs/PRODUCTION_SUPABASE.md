@@ -4,19 +4,21 @@
 
 PricingTool gebruikt Supabase project `xmedaatjwxkmwkjmwuuz` in regio `eu-west-2`.
 
-De browser publishable key is geen databasewachtwoord. Prisma draait server-side en gebruikt daarom de Supavisor PostgreSQL pooler met `SUPABASE_DB_PASSWORD`.
+De browser publishable key is geen databasewachtwoord. Prisma draait server-side en gebruikt daarom de Supavisor PostgreSQL pooler.
 
-Aanbevolen runtime variabelen:
+Voor Bolt gebruikt PricingTool eigen secretnamen, omdat Bolt custom secretnamen met de prefix `SUPABASE_` reserveert.
+
+Aanbevolen Bolt runtime variabelen:
 
 ```env
-SUPABASE_PROJECT_ID=xmedaatjwxkmwkjmwuuz
-SUPABASE_DB_REGION=eu-west-2
-SUPABASE_DB_PASSWORD=<secret>
+PRICING_DB_PROJECT_ID=xmedaatjwxkmwkjmwuuz
+PRICING_DB_REGION=eu-west-2
+PRICING_DB_PASSWORD=<secret>
 NEXT_PUBLIC_SUPABASE_URL=https://xmedaatjwxkmwkjmwuuz.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_2iUH3mAMj_X9htDIbhB3GA_vhm_IoFc
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
 ```
 
-`SUPABASE_PROJECT_ID` plus `SUPABASE_DB_PASSWORD` heeft in de applicatie voorrang op een oudere `DATABASE_URL`. Daarmee kan een oude Supabase verbinding niet stilzwijgend actief blijven.
+`PRICING_DB_PROJECT_ID` plus `PRICING_DB_PASSWORD` heeft in de applicatie voorrang op een oudere `DATABASE_URL`. De oudere `SUPABASE_PROJECT_ID`, `SUPABASE_DB_REGION` en `SUPABASE_DB_PASSWORD` namen blijven als backwards-compatible fallback ondersteund voor GitHub Actions en andere runtimes.
 
 ## GitHub production environment
 
@@ -32,13 +34,17 @@ GitHub environment secrets worden uitsluitend aan GitHub Actions jobs doorgegeve
 
 ## Bolt runtime
 
-Voeg in de productieomgeving van de hosting minimaal toe:
+Voeg in Bolt minimaal toe:
 
-`SUPABASE_PROJECT_ID=xmedaatjwxkmwkjmwuuz`
+`PRICING_DB_PROJECT_ID=xmedaatjwxkmwkjmwuuz`
 
-`SUPABASE_DB_REGION=eu-west-2`
+`PRICING_DB_REGION=eu-west-2`
 
-`SUPABASE_DB_PASSWORD=<database password>`
+`PRICING_DB_PASSWORD=<database password>`
+
+`NEXTAUTH_SECRET=<random secret van minimaal 32 tekens>`
+
+`NEXTAUTH_URL=https://pricingtool.bolt.host`
 
 Voeg voor automatisering naar behoefte ook toe:
 
@@ -54,7 +60,7 @@ Voeg voor automatisering naar behoefte ook toe:
 
 ## Feedbeheer
 
-De nieuwe Feeds omgeving bestaat uit:
+De Feeds omgeving bestaat uit:
 
 `/feeds`, Feedbeheer
 
