@@ -18,15 +18,16 @@ function buildSupavisorConnection(projectId: string, password: string, region: s
 }
 
 /**
- * Prefer an explicit Supabase project reference plus database password in production.
- * This prevents an old DATABASE_URL from silently keeping the application on another
- * Supabase project. DATABASE_URL remains supported as a backwards-compatible fallback.
+ * Bolt reserves custom secret names starting with SUPABASE_. Prefer the
+ * PRICING_DB_* names there. The older SUPABASE_* variables remain supported
+ * as backwards-compatible fallbacks for GitHub Actions and other runtimes.
+ * DATABASE_URL remains available as a final fallback.
  */
 export function resolveDatabaseConnection(
   rawConnectionString = process.env.DATABASE_URL ?? '',
-  region = process.env.SUPABASE_DB_REGION ?? DEFAULT_SUPABASE_REGION,
-  projectId = process.env.SUPABASE_PROJECT_ID ?? '',
-  dbPassword = process.env.SUPABASE_DB_PASSWORD ?? '',
+  region = process.env.PRICING_DB_REGION ?? process.env.SUPABASE_DB_REGION ?? DEFAULT_SUPABASE_REGION,
+  projectId = process.env.PRICING_DB_PROJECT_ID ?? process.env.SUPABASE_PROJECT_ID ?? '',
+  dbPassword = process.env.PRICING_DB_PASSWORD ?? process.env.SUPABASE_DB_PASSWORD ?? '',
 ): DatabaseConnectionInfo {
   const cleanProjectId = projectId.trim()
   const cleanPassword = dbPassword.trim()
