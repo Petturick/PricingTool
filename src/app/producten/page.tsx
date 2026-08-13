@@ -4,7 +4,6 @@ import { DataTable } from '@/components/DataTable'
 import { DatabaseNotice } from '@/components/DatabaseNotice'
 import { deriveProductMetrics, getFilterOptions, getFilteredProducts } from '@/lib/dashboard'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
-import { prisma } from '@/lib/prisma'
 import { safeDatabaseQuery } from '@/lib/safe-database'
 
 function readParam(value: string | string[] | undefined) {
@@ -33,49 +32,64 @@ export default async function ProductenPage({ searchParams }: { searchParams: Pr
   const rows = products.map((product) => deriveProductMetrics(product, filters))
   const paged = rows.slice((page - 1) * pageSize, page * pageSize)
   const totalPages = Math.max(Math.ceil(rows.length / pageSize), 1)
-  const sourceResult = await safeDatabaseQuery(
-    () => prisma.productFeedLink.findMany({
-      where: { productId: { in: paged.map((item) => item.product.id) } },
-      include: { feedSource: true },
-      orderBy: { lastSeenAt: 'desc' },
-    }),
-    [],
-  )
-  const sourceByProduct = new Map<string, string[]>()
-  for (const link of sourceResult.data) {
-    const current = sourceByProduct.get(link.productId) ?? []
-    if (!current.includes(link.feedSource.name)) current.push(link.feedSource.name)
-    sourceByProduct.set(link.productId, current)
-  }
 
   return (
     <div className="space-y-6">
       {!result.available && <DatabaseNotice />}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold">Producten</h1>
-          <p className="mt-2 text-sm text-slate-600">Alle gemonitorde artikelen met actuele marktpositie, verschillen, trends en databron.</p>
-        </div>
-        <Link href="/feeds" className="rounded-xl border border-[#d7e4ff] bg-[var(--blue-soft)] px-4 py-2 text-xs font-semibold text-[var(--blue)]">Productfeed beheren</Link>
+      <div>
+        <h1 className="text-3xl font-semibold">Producten</h1>
+        <p className="mt-2 text-sm text-slate-600">Alle gemonitorde artikelen met actuele marktpositie, verschillen en trends.</p>
       </div>
 
       <form className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-5">
         <input name="q" defaultValue={filters.q} placeholder="Zoek op artikel, EAN of naam" className="rounded-xl border border-slate-300 px-3 py-2 text-sm md:col-span-2" />
-        <select name="productgroep" defaultValue={filters.productGroupId} className="rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="">Alle productgroepen</option>{filterOptions.productGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select>
-        <select name="land" defaultValue={filters.countryId} className="rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="">Alle landen</option>{filterOptions.countries.map((country) => <option key={country.id} value={country.id}>{country.name}</option>)}</select>
-        <select name="concurrent" defaultValue={filters.competitorId} className="rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="">Alle concurrenten</option>{filterOptions.competitors.map((competitor) => <option key={competitor.id} value={competitor.id}>{competitor.name}</option>)}</select>
+        <select name="productgroep" defaultValue={filters.productGroupId} className="rounded-xl border border-slate-300 px-3 py-2 text-sm">
+          <option value="">Alle productgroepen</option>
+          {filterOptions.productGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+        </select>
+        <select name="land" defaultValue={filters.countryId} className="rounded-xl border border-slate-300 px-3 py-2 text-sm">
+          <option value="">Alle landen</option>
+          {filterOptions.countries.map((country) => <option key={country.id} value={country.id}>{country.name}</option>)}
+        </select>
+        <select name="concurrent" defaultValue={filters.competitorId} className="rounded-xl border border-slate-300 px-3 py-2 text-sm">
+          <option value="">Alle concurrenten</option>
+          {filterOptions.competitors.map((competitor) => <option key={competitor.id} value={competitor.id}>{competitor.name}</option>)}
+        </select>
         <button className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white md:col-span-5">Filteren</button>
       </form>
 
       <DataTable
         columns={[
-          { key: 'artikelnummer', header: 'Artikelnummer' }, { key: 'ean', header: 'EAN' }, { key: 'productnaam', header: 'Productnaam' }, { key: 'groep', header: 'Productgroep' }, { key: 'bron', header: 'Bron' }, { key: 'eigenPrijs', header: 'Eigen prijs' }, { key: 'laagste', header: 'Laagste concurrentieprijs' }, { key: 'gemiddeld', header: 'Gem. concurrent prijs' }, { key: 'verschilEuro', header: 'Verschil €' }, { key: 'verschilPct', header: 'Verschil %' }, { key: 'positie', header: 'Marktpositie' }, { key: 'aantalConcurrenten', header: 'Aantal concurrenten' }, { key: 'voorraad', header: 'Voorraad' }, { key: 'laatsteControle', header: 'Laatste controle' }, { key: 'trend', header: 'Prijstrend' },
+          { key: 'artikelnummer', header: 'Artikelnummer' },
+          { key: 'ean', header: 'EAN' },
+          { key: 'productnaam', header: 'Productnaam' },
+          { key: 'groep', header: 'Productgroep' },
+          { key: 'eigenPrijs', header: 'Eigen prijs' },
+          { key: 'laagste', header: 'Laagste concurrentieprijs' },
+          { key: 'gemiddeld', header: 'Gem. concurrent prijs' },
+          { key: 'verschilEuro', header: 'Verschil €' },
+          { key: 'verschilPct', header: 'Verschil %' },
+          { key: 'positie', header: 'Marktpositie' },
+          { key: 'aantalConcurrenten', header: 'Aantal concurrenten' },
+          { key: 'voorraad', header: 'Voorraad' },
+          { key: 'laatsteControle', header: 'Laatste controle' },
+          { key: 'trend', header: 'Prijstrend' },
         ]}
         rows={paged.map((item) => ({
           artikelnummer: <Link href={`/producten/${item.product.id}`} className="font-medium text-sky-700">{item.product.articleNumber}</Link>,
-          ean: item.product.ean ?? '—', productnaam: item.product.name, groep: item.product.productGroup.name,
-          bron: sourceByProduct.get(item.product.id)?.join(', ') ?? 'Handmatig / import',
-          eigenPrijs: formatCurrency(item.ownPrice, item.product.currency), laagste: formatCurrency(item.lowestPrice), gemiddeld: formatCurrency(item.averagePrice), verschilEuro: formatCurrency(item.difference.diff), verschilPct: item.difference.pctDiff ? `${formatNumber(Number(item.difference.pctDiff), 1)}%` : '—', positie: item.marketPosition, aantalConcurrenten: formatNumber(item.offerCount), voorraad: item.product.stockStatus ?? '—', laatsteControle: formatDate(item.lastCheckedAt), trend: item.trendDelta === null ? '—' : `${item.trendDelta >= 0 ? '+' : ''}${formatCurrency(item.trendDelta)}`,
+          ean: item.product.ean ?? '—',
+          productnaam: item.product.name,
+          groep: item.product.productGroup.name,
+          eigenPrijs: formatCurrency(item.ownPrice, item.product.currency),
+          laagste: formatCurrency(item.lowestPrice),
+          gemiddeld: formatCurrency(item.averagePrice),
+          verschilEuro: formatCurrency(item.difference.diff),
+          verschilPct: item.difference.pctDiff ? `${formatNumber(Number(item.difference.pctDiff), 1)}%` : '—',
+          positie: item.marketPosition,
+          aantalConcurrenten: formatNumber(item.offerCount),
+          voorraad: item.product.stockStatus ?? '—',
+          laatsteControle: formatDate(item.lastCheckedAt),
+          trend: item.trendDelta === null ? '—' : `${item.trendDelta >= 0 ? '+' : ''}${formatCurrency(item.trendDelta)}`,
         }))}
       />
 
