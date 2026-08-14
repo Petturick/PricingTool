@@ -71,7 +71,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null) as { organizationId?: string; products?: CanonicalFeedProduct[]; sourceName?: string } | null
   if (!body?.products || !Array.isArray(body.products)) return json({ error: 'Products array ontbreekt.' }, { status: 400 })
-  if (body.organizationId !== ENGELS_ORGANIZATION_ID) return json({ error: 'Alleen de actieve Engels Group organisatie kan naar PricingTool synchroniseren.' }, { status: 403 })
+  if (body.organizationId !== ENGELS_ORGANIZATION_ID) return json({ error: 'Alleen de actieve Engels Group organisatie kan naar PrySight synchroniseren.' }, { status: 403 })
   if (body.products.length > 5000) return json({ error: 'Maximaal 5000 producten per synchronisatiebatch.' }, { status: 413 })
 
   const result = await ingestCanonicalProducts({

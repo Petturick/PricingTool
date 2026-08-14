@@ -1,12 +1,12 @@
-# PricingTool productie, Supabase en feeds
+# PrySight productie, Supabase en feeds
 
 ## Productiedatabase
 
-PricingTool gebruikt Supabase project `xmedaatjwxkmwkjmwuuz` in regio `eu-west-2`.
+PrySight gebruikt Supabase project `xmedaatjwxkmwkjmwuuz` in regio `eu-west-2`.
 
 De browser publishable key is geen databasewachtwoord. Prisma draait server-side en gebruikt daarom de Supavisor PostgreSQL pooler.
 
-Voor Bolt gebruikt PricingTool eigen secretnamen, omdat Bolt custom secretnamen met de prefix `SUPABASE_` reserveert.
+Voor Bolt gebruikt PrySight bestaande technische secretnamen met de prefix `PRICING_`. Die namen blijven bewust behouden om bestaande deployments en secrets niet te breken.
 
 Aanbevolen Bolt runtime variabelen:
 
@@ -46,6 +46,8 @@ Voeg in Bolt minimaal toe:
 
 `NEXTAUTH_URL=https://pricingtool.bolt.host`
 
+De huidige Bolt-hostnaam kan technisch ongewijzigd blijven; de zichtbare productidentiteit is PrySight. Pas `NEXTAUTH_URL` pas aan nadat een nieuwe productiehost of custom domain daadwerkelijk actief is.
+
 Voeg voor automatisering naar behoefte ook toe:
 
 `PRICE_MONITOR_API_KEY`
@@ -78,11 +80,11 @@ Geïmporteerde producten worden direct geüpsert in `products` en zijn daarna zi
 
 ## Syntrx PIM
 
-PricingTool ontvangt Engels Group productdata via:
+PrySight ontvangt Engels Group productdata via:
 
 `POST /api/integraties/syntrx`
 
-De koppeling gebruikt de bestaande Syntrx gebruikerssessie als Bearer token. PricingTool valideert de sessie tegen Syntrx en controleert of de gebruiker binnen Engels Group een bevoegde rol heeft of platform super admin is. Er wordt dus geen gedeelde onbeveiligde synchronisatiesleutel in de browser opgeslagen.
+De koppeling gebruikt de bestaande Syntrx gebruikerssessie als Bearer token. PrySight valideert de sessie tegen Syntrx en controleert of de gebruiker binnen Engels Group een bevoegde rol heeft of platform super admin is. Er wordt dus geen gedeelde onbeveiligde synchronisatiesleutel in de browser opgeslagen.
 
 Syntrx project: `cieqifmizthutfvfgfny`
 
