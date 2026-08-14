@@ -16,14 +16,20 @@ test('prefers explicit Supabase project configuration for production', () => {
   assert.equal(decodeURIComponent(url.username), 'postgres.xmedaatjwxkmwkjmwuuz')
   assert.equal(decodeURIComponent(url.password), 'secret with spaces')
   assert.equal(url.searchParams.get('sslmode'), 'require')
+  assert.equal(url.searchParams.get('uselibpqcompat'), 'true')
   assert.equal(url.searchParams.get('pgbouncer'), 'true')
 })
 
-test('supports session pooling only when explicitly requested', () => {
-  const result = resolveDatabaseConnection('', 'eu-west-2', 'xmedaatjwxkmwkjmwuuz', 'secret', '5432')
+test('ignores legacy session pooling overrides in the Bolt runtime', () => {
+  const original = process.env.PRICING_DB_POOLER_PORT
+  process.env.PRICING_DB_POOLER_PORT = '5432'
+  const result = resolveDatabaseConnection('', 'eu-west-2', 'xmedaatjwxkmwkjmwuuz', 'secret')
+  if (original === undefined) delete process.env.PRICING_DB_POOLER_PORT
+  else process.env.PRICING_DB_POOLER_PORT = original
   const url = new URL(result.connectionString)
-  assert.equal(url.port, '5432')
-  assert.equal(url.searchParams.get('pgbouncer'), null)
+  assert.equal(url.port, '6543')
+  assert.equal(url.searchParams.get('uselibpqcompat'), 'true')
+  assert.equal(url.searchParams.get('pgbouncer'), 'true')
 })
 
 test('converts a direct Supabase URL to the configured pooler region', () => {
@@ -41,11 +47,14 @@ test('converts a direct Supabase URL to the configured pooler region', () => {
   assert.equal(decodeURIComponent(url.username), 'postgres.fdnkzcpqyjajjawrwihl')
 })
 
-test('preserves an explicitly configured pooler URL', () => {
-  const source = 'postgresql://postgres.ref:secret@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=require'
+test('normalizes an explicitly configured pooler URL for Bolt', () => {
+  const source = 'postgresql://postgres.ref:secret@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require'
   const result = resolveDatabaseConnection(source, 'eu-west-1', '', '')
-  assert.equal(result.connectionString, source)
+  const url = new URL(result.connectionString)
   assert.equal(result.mode, 'supavisor')
+  assert.equal(url.port, '6543')
+  assert.equal(url.searchParams.get('uselibpqcompat'), 'true')
+  assert.equal(url.searchParams.get('pgbouncer'), 'true')
 })
 
 test('reports missing database configuration without leaking values', () => {
