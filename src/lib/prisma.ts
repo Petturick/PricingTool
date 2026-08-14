@@ -30,7 +30,12 @@ function createPrismaClient() {
   const { connectionString, configured } = resolveDatabaseConnection()
   if (!configured) return createUnavailableClient()
 
-  const adapter = new PrismaPg({ connectionString })
+  const adapter = new PrismaPg({
+    connectionString,
+    max: 1,
+    connectionTimeoutMillis: 10_000,
+    idleTimeoutMillis: 10_000,
+  })
   return new PrismaClient({ adapter })
 }
 
