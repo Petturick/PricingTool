@@ -36,6 +36,54 @@ function readErrorChain(error: unknown) {
   }
 }
 
+const CONNECTION_ERROR_CODES = new Set([
+  '28P01',
+  '57P03',
+  '08000',
+  '08001',
+  '08003',
+  '08004',
+  '08006',
+  '08007',
+  '08P01',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ENETUNREACH',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'ETIMEDOUT',
+  'P1000',
+  'P1001',
+  'P1002',
+  'P1008',
+  'P1011',
+  'XX000',
+])
+
+export function isDatabaseConnectivityError(error: unknown) {
+  const { message, code } = readErrorChain(error)
+  if (code && (CONNECTION_ERROR_CODES.has(code) || code.startsWith('08'))) return true
+  return [
+    'database is not configured',
+    'database temporarily unavailable',
+    'authentication failed',
+    'circuit breaker open',
+    'connection closed',
+    'connection failed',
+    'connection refused',
+    'connection terminated',
+    'connect_timeout',
+    'failed to connect',
+    'getaddrinfo',
+    'max client connections',
+    'tenant not found',
+    'tenant or user not found',
+    'timed out',
+    'timeout expired',
+    'worker_not_found',
+  ].some((part) => message.includes(part))
+}
+
 export function classifyConnectionFailure(error: unknown): { reason: ConnectionFailureReason; errorCode: string | null } {
   const { message, code } = readErrorChain(error)
 

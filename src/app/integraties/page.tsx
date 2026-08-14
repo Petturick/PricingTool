@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { getSafeDatabaseStatus } from '@/lib/database-url'
 import { prisma } from '@/lib/prisma'
 import { safeDatabaseQuery } from '@/lib/safe-database'
 import { formatDate } from '@/lib/format'
@@ -13,9 +14,7 @@ export default async function IntegrationsPage() {
   const monitorReady = Boolean(process.env.PRICE_MONITOR_API_KEY)
   const feedReady = Boolean(process.env.DATA_FEED_API_KEY)
   const webhookReady = Boolean(process.env.ALERT_WEBHOOK_URL)
-  const databasePassword = process.env.PRICING_DB_PASSWORD ?? process.env.SUPABASE_DB_PASSWORD
-  const databaseProjectId = process.env.PRICING_DB_PROJECT_ID ?? process.env.SUPABASE_PROJECT_ID
-  const databaseReady = Boolean(databasePassword && databaseProjectId)
+  const database = getSafeDatabaseStatus()
   const syntrxResult = await safeDatabaseQuery(
     () => prisma.feedSource.findUnique({ where: { sourceKey: 'syntrx:cieqifmizthutfvfgfny:4cd85d1b-f834-4e68-b26d-1eae649b4c1f' } }),
     null,
@@ -26,7 +25,7 @@ export default async function IntegrationsPage() {
     { title: 'Syntrx PIM', description: 'Engels Group producten kunnen vanuit Syntrx rechtstreeks naar PrySight worden gesynchroniseerd. De Syntrx sessie en organisatiebevoegdheid worden server-side gevalideerd.', ready: Boolean(syntrx), detail: syntrx ? `Laatste synchronisatie ${formatDate(syntrx.lastRunAt)}, ${syntrx.lastItemCount} regels, status ${syntrx.lastRunStatus}.` : 'Endpoint gereed op /api/integraties/syntrx. Activeer daarna de PrySight koppeling in Syntrx.' },
     { title: 'Automatische prijscontroles', description: 'De scheduler kan gematchte concurrentie URLs periodiek controleren en schrijft geldige prijzen, voorraad en historie direct weg.', ready: monitorReady, detail: 'Vereist PRICE_MONITOR_API_KEY en de meegeleverde GitHub Actions scheduler.' },
     { title: 'Productfeed API', description: 'ERP, Magento, PIM of een andere bron kan eigen producten, prijzen en voorraad via een beveiligde JSON feed synchroniseren.', ready: feedReady, detail: 'POST naar /api/integraties/product-feed met Bearer DATA_FEED_API_KEY. De bron verschijnt daarna ook onder Feeds.' },
-    { title: 'PrySight database', description: 'PrySight gebruikt het toegewezen Supabase project via de server-side Supavisor databaseverbinding.', ready: databaseReady && syntrxResult.available, detail: `Project xmedaatjwxkmwkjmwuuz, regio eu-west-2. ${databaseReady ? 'Runtime variabelen gevonden.' : 'PRICING_DB_PASSWORD moet nog als Bolt secret worden gezet.'}` },
+    { title: 'PrySight database', description: 'PrySight gebruikt het toegewezen Supabase project via de server-side Supavisor databaseverbinding.', ready: database.configured && syntrxResult.available, detail: `Project xmedaatjwxkmwkjmwuuz, regio eu-west-2. ${database.configured ? `Configuratie gevonden via ${database.source === 'full_url' ? 'volledige database URL' : 'losse databasevariabelen'}.` : `Configuratie ongeldig, ${database.configurationIssue ?? 'databasewachtwoord ontbreekt'}.`}` },
     { title: 'Alert webhook', description: 'Nieuwe prijs, voorraad en opportunity signalen kunnen direct naar een externe workflow, Teams, Slack of mailservice worden doorgestuurd.', ready: webhookReady, detail: 'Vereist ALERT_WEBHOOK_URL. De webhook ontvangt JSON met type, titel, melding en gekoppelde IDs.' },
   ]
 

@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
+import { withDatabaseRoute } from '@/lib/database-route'
 import { prisma } from '@/lib/prisma'
 import { alertPatchSchema } from '@/lib/validators'
 
@@ -9,17 +10,19 @@ export async function GET(request: Request) {
   const type = searchParams.get('type') ?? undefined
   const productId = searchParams.get('productId') ?? undefined
 
-  const alerts = await prisma.alert.findMany({
-    where: {
-      severity: severity as never,
-      type,
-      productId,
-    },
-    include: { product: true, competitorOffer: { include: { competitor: true } } },
-    orderBy: [{ isRead: 'asc' }, { createdAt: 'desc' }],
-  })
+  return withDatabaseRoute(async () => {
+    const alerts = await prisma.alert.findMany({
+      where: {
+        severity: severity as never,
+        type,
+        productId,
+      },
+      include: { product: true, competitorOffer: { include: { competitor: true } } },
+      orderBy: [{ isRead: 'asc' }, { createdAt: 'desc' }],
+    })
 
-  return NextResponse.json(alerts)
+    return NextResponse.json(alerts)
+  })
 }
 
 export async function PATCH(request: Request) {
@@ -29,6 +32,8 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ errors: parsed.error.flatten() }, { status: 400 })
   }
 
-  const alert = await prisma.alert.update({ where: { id: parsed.data.id }, data: { isRead: parsed.data.isRead } })
-  return NextResponse.json(alert)
+  return withDatabaseRoute(async () => {
+    const alert = await prisma.alert.update({ where: { id: parsed.data.id }, data: { isRead: parsed.data.isRead } })
+    return NextResponse.json(alert)
+  })
 }

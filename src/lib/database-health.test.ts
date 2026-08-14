@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { classifyConnectionFailure } from './database-health'
+import { classifyConnectionFailure, isDatabaseConnectivityError } from './database-health'
 
 test('classifies Supavisor circuit breaker errors before authentication text', () => {
   const result = classifyConnectionFailure({
@@ -22,4 +22,9 @@ test('reads a tenant error nested in an aggregate error', () => {
 test('classifies pooler capacity and routing failures', () => {
   assert.equal(classifyConnectionFailure({ code: 'XX000', message: 'Max client connections reached' }).reason, 'client_limit_reached')
   assert.equal(classifyConnectionFailure({ code: 'XX000', message: 'Subscribe error: worker_not_found' }).reason, 'pooler_routing_failed')
+})
+
+test('distinguishes connection failures from application errors', () => {
+  assert.equal(isDatabaseConnectivityError({ code: 'P1001', message: 'Cannot reach database server' }), true)
+  assert.equal(isDatabaseConnectivityError({ code: '23505', message: 'duplicate key value violates unique constraint' }), false)
 })

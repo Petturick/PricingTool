@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { FeedSourceType } from '@/generated/prisma/client'
+import { withDatabaseRoute } from '@/lib/database-route'
 import { ingestCanonicalProducts, type CanonicalFeedProduct } from '@/lib/feed-ingestion'
 
 const SYNTRX_URL = process.env.SYNTRX_SUPABASE_URL ?? 'https://cieqifmizthutfvfgfny.supabase.co'
@@ -73,14 +74,17 @@ export async function POST(request: Request) {
   if (!body?.products || !Array.isArray(body.products)) return json({ error: 'Products array ontbreekt.' }, { status: 400 })
   if (body.organizationId !== ENGELS_ORGANIZATION_ID) return json({ error: 'Alleen de actieve Engels Group organisatie kan naar PrySight synchroniseren.' }, { status: 403 })
   if (body.products.length > 5000) return json({ error: 'Maximaal 5000 producten per synchronisatiebatch.' }, { status: 413 })
+  const products = body.products
 
-  const result = await ingestCanonicalProducts({
-    sourceKey: `syntrx:cieqifmizthutfvfgfny:${ENGELS_ORGANIZATION_ID}`,
-    sourceName: body.sourceName?.trim() || 'Syntrx PIM · Engels Group',
-    sourceType: FeedSourceType.SYNTRX,
-    products: body.products,
-    config: { projectId: 'cieqifmizthutfvfgfny', organizationId: ENGELS_ORGANIZATION_ID, syncedBy: access.user.email ?? access.user.id },
+  return withDatabaseRoute(async () => {
+    const result = await ingestCanonicalProducts({
+      sourceKey: `syntrx:cieqifmizthutfvfgfny:${ENGELS_ORGANIZATION_ID}`,
+      sourceName: body.sourceName?.trim() || 'Syntrx PIM · Engels Group',
+      sourceType: FeedSourceType.SYNTRX,
+      products,
+      config: { projectId: 'cieqifmizthutfvfgfny', organizationId: ENGELS_ORGANIZATION_ID, syncedBy: access.user.email ?? access.user.id },
+    })
+
+    return json(result)
   })
-
-  return json(result)
 }

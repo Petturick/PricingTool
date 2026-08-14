@@ -11,6 +11,7 @@ export type DatabaseConnectionInfo = {
   mode: 'missing' | 'direct' | 'supavisor' | 'custom'
   host: string | null
   source: 'missing' | 'full_url' | 'components'
+  configurationIssue: 'invalid_url' | 'missing_password' | 'placeholder_password' | null
 }
 
 function configureSupavisorUrl(url: URL) {
@@ -37,16 +38,37 @@ function buildSupavisorConnection(projectId: string, password: string, region: s
   const host = cleanPoolerHost(poolerHost, region)
   const url = configureSupavisorUrl(new URL(`postgresql://${username}:${encodedPassword}@${host}/postgres`))
   const connectionString = url.toString()
-  return { connectionString, configured: true, mode: 'supavisor', host, source: 'components' }
+  return { connectionString, configured: true, mode: 'supavisor', host, source: 'components', configurationIssue: null }
+}
+
+function decoded(value: string) {
+  try { return decodeURIComponent(value) } catch { return value }
+}
+
+function isPlaceholderPassword(value: string) {
+  const normalized = decoded(value).trim().toLowerCase()
+  return !normalized
+    || normalized.includes('[your-password]')
+    || normalized.includes('your_actual_password')
+    || normalized.includes('je_werkelijke_supabase')
+    || normalized.includes('replace_with')
+}
+
+function normalizePoolerUser(url: URL, projectId: string) {
+  if (!projectId) return
+  const username = decoded(url.username)
+  const baseUsername = username.split('.')[0] || 'postgres'
+  if (!username.endsWith(`.${projectId}`)) url.username = `${baseUsername}.${projectId}`
 }
 
 /**
  * PricingTool uses Supabase Supavisor because Bolt hosting may not have IPv6
  * access to the direct db.<project>.supabase.co hostname. Bolt deployments are
  * serverless, so Supavisor transaction pooling on port 6543 is enforced.
- * An exact full pooler URL always wins because Supabase assigns the pooler
- * host. Component variables remain available as a fallback for existing Bolt
- * deployments. `uselibpqcompat=true` keeps node-postgres SSL `require`
+ * A component password wins when present, while an assigned host from a full
+ * URL is retained. This lets a rotated PRICING_DB_PASSWORD repair a stale full
+ * URL without falling back to a guessed pooler cluster. `uselibpqcompat=true`
+ * keeps node-postgres SSL `require`
  * semantics aligned with Supabase while retaining encryption.
  */
 export function resolveDatabaseConnection(
@@ -61,39 +83,55 @@ export function resolveDatabaseConnection(
   const cleanPassword = dbPassword.trim()
   const cleanRegion = region.trim() || DEFAULT_SUPABASE_REGION
   const value = rawConnectionString.trim()
+  let parsedUrl: URL | null = null
+
   if (value) {
-    let url: URL
     try {
-      url = new URL(value)
+      parsedUrl = new URL(value)
     } catch {
-      return { connectionString: value, configured: true, mode: 'custom', host: null, source: 'full_url' }
+      return { connectionString: '', configured: false, mode: 'custom', host: null, source: 'full_url', configurationIssue: 'invalid_url' }
     }
+  }
 
-    const directMatch = url.hostname.match(DIRECT_SUPABASE_HOST)
-    if (!directMatch && !url.hostname.endsWith('.pooler.supabase.com')) {
-      return { connectionString: value, configured: true, mode: 'custom', host: url.hostname, source: 'full_url' }
-    }
-
-    if (!directMatch) {
-      configureSupavisorUrl(url)
-      return { connectionString: url.toString(), configured: true, mode: 'supavisor', host: url.hostname, source: 'full_url' }
-    }
-
-    if (!cleanProjectId || !cleanPassword) {
-      const projectRef = directMatch[1]
-      const baseUsername = decodeURIComponent(url.username).split('.')[0] || 'postgres'
-      url.hostname = cleanPoolerHost(poolerHost, cleanRegion)
-      url.username = `${baseUsername}.${projectRef}`
-      configureSupavisorUrl(url)
-      return { connectionString: url.toString(), configured: true, mode: 'supavisor', host: url.hostname, source: 'full_url' }
-    }
+  if (cleanPassword && isPlaceholderPassword(cleanPassword)) {
+    return { connectionString: '', configured: false, mode: 'missing', host: null, source: 'components', configurationIssue: 'placeholder_password' }
   }
 
   if (cleanProjectId && cleanPassword) {
-    return buildSupavisorConnection(cleanProjectId, cleanPassword, cleanRegion, poolerHost, poolerUser)
+    const assignedHost = parsedUrl?.hostname.endsWith('.pooler.supabase.com') ? parsedUrl.hostname : poolerHost
+    const assignedUsername = parsedUrl?.hostname.endsWith('.pooler.supabase.com')
+      ? `${decoded(parsedUrl.username).split('.')[0] || 'postgres'}.${cleanProjectId}`
+      : poolerUser
+    return buildSupavisorConnection(cleanProjectId, cleanPassword, cleanRegion, assignedHost, assignedUsername)
   }
 
-  return { connectionString: '', configured: false, mode: 'missing', host: null, source: 'missing' }
+  if (parsedUrl) {
+    const url = parsedUrl
+
+    const directMatch = url.hostname.match(DIRECT_SUPABASE_HOST)
+    if (!directMatch && !url.hostname.endsWith('.pooler.supabase.com')) {
+      return { connectionString: value, configured: true, mode: 'custom', host: url.hostname, source: 'full_url', configurationIssue: null }
+    }
+
+    if (isPlaceholderPassword(url.password)) {
+      return { connectionString: '', configured: false, mode: 'missing', host: url.hostname, source: 'full_url', configurationIssue: url.password ? 'placeholder_password' : 'missing_password' }
+    }
+
+    if (!directMatch) {
+      normalizePoolerUser(url, cleanProjectId)
+      configureSupavisorUrl(url)
+      return { connectionString: url.toString(), configured: true, mode: 'supavisor', host: url.hostname, source: 'full_url', configurationIssue: null }
+    }
+
+    const projectRef = directMatch[1]
+    const baseUsername = decoded(url.username).split('.')[0] || 'postgres'
+    url.hostname = cleanPoolerHost(poolerHost, cleanRegion)
+    url.username = `${baseUsername}.${projectRef}`
+    configureSupavisorUrl(url)
+    return { connectionString: url.toString(), configured: true, mode: 'supavisor', host: url.hostname, source: 'full_url', configurationIssue: null }
+  }
+
+  return { connectionString: '', configured: false, mode: 'missing', host: null, source: 'missing', configurationIssue: 'missing_password' }
 }
 
 export function getSafeDatabaseStatus() {
@@ -109,6 +147,7 @@ export function getSafeDatabaseStatus() {
     mode: resolved.mode,
     host: resolved.host,
     source: resolved.source,
+    configurationIssue: resolved.configurationIssue,
     port,
     profile: resolved.mode === 'supavisor' ? SUPAVISOR_PROFILE : null,
   }

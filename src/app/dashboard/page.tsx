@@ -2,10 +2,12 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { MatchStatus } from '@/generated/prisma/client'
+import { DatabaseNotice } from '@/components/DatabaseNotice'
 import { DataTable } from '@/components/DataTable'
 import { StatCard } from '@/components/StatCard'
 import { getDashboardSnapshot, type DashboardSnapshot } from '@/lib/dashboard'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
+import { safeDatabaseQuery } from '@/lib/safe-database'
 
 function readParam(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] : value }
 
@@ -23,9 +25,8 @@ function WorkflowCard({ title, subtitle, value, tone, href }: { title: string; s
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams
   const filters: { countryId?: string; productGroupId?: string; competitorId?: string; matchStatus?: MatchStatus | '' } = { countryId: readParam(params.land), productGroupId: readParam(params.productgroep), competitorId: readParam(params.concurrent), matchStatus: (readParam(params.matchstatus) as MatchStatus | undefined) ?? '' }
-  let snapshot = emptySnapshot
-  let databaseAvailable = true
-  try { snapshot = await getDashboardSnapshot(filters) } catch (error) { console.error('Dashboard database query failed', error); databaseAvailable = false }
+  const result = await safeDatabaseQuery(() => getDashboardSnapshot(filters), emptySnapshot)
+  const snapshot = result.data
 
   const coverage = snapshot.kpis.monitoredProducts > 0 ? Math.min(100, Math.round((snapshot.kpis.validMatches / snapshot.kpis.monitoredProducts) * 100)) : 0
   const healthyChecks = Math.max(0, snapshot.kpis.activeOffers - snapshot.kpis.failedChecks - snapshot.kpis.staleData)
@@ -36,7 +37,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="space-y-5">
-      {!databaseAvailable && <div className="rounded-2xl border border-[#ffd2d9] bg-[var(--accent-soft)] p-4 text-sm text-[#b4233d]"><p className="font-semibold">Databaseverbinding mislukt</p><p className="mt-1 text-[12px]">Het dashboard blijft beschikbaar, maar toont geen waarden totdat de verbinding is hersteld.</p></div>}
+      {!result.available && <DatabaseNotice />}
       <section className="grid gap-4 xl:grid-cols-[1fr_340px]">
         <div className="surface-card px-5 py-5 sm:px-6"><p className="eyebrow">Prijsmonitoring</p><h1 className="mt-2 text-[28px] font-semibold tracking-[-0.035em] text-[#161a26] sm:text-[32px]">Grip op marktprijzen en commerciële ruimte</h1><p className="mt-2 max-w-3xl text-[13px] leading-6 text-[#697386]">Monitor concurrenten, valideer matches, signaleer prijsbewegingen en vertaal marktdata naar concrete prijsbesluiten.</p></div>
         <Link href={nextActionHref} className="surface-card group flex items-center justify-between gap-4 p-5 transition-transform hover:-translate-y-0.5"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8e5ff] bg-[var(--blue-soft)] text-[var(--blue)]"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m9 6 7 6-7 6V6Z" /></svg></div><div><p className="text-[11px] font-semibold text-[#687184]">Volgende stap</p><p className="mt-1 text-[13px] font-semibold text-[#202536]">{nextActionTitle}</p><p className="mt-0.5 text-[11px] text-[#8a93a5]">{nextActionMeta}</p></div></div><span className="text-lg text-[#2c3343] transition-transform group-hover:translate-x-1">›</span></Link>

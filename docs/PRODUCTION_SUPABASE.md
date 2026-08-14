@@ -18,7 +18,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://xmedaatjwxkmwkjmwuuz.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
 ```
 
-`PRICING_DB_PROJECT_ID` plus `PRICING_DB_PASSWORD` heeft in de applicatie voorrang op een oudere `DATABASE_URL`. De oudere `SUPABASE_PROJECT_ID`, `SUPABASE_DB_REGION` en `SUPABASE_DB_PASSWORD` namen blijven als backwards-compatible fallback ondersteund voor GitHub Actions en andere runtimes.
+`PRICING_DB_PROJECT_ID` plus `PRICING_DB_PASSWORD` heeft in de applicatie voorrang op een verouderd wachtwoord in `PRICING_DATABASE_URL` of `DATABASE_URL`. Een toegewezen poolerhost uit die URL blijft behouden. De oudere `SUPABASE_PROJECT_ID`, `SUPABASE_DB_REGION` en `SUPABASE_DB_PASSWORD` namen blijven als backwards-compatible fallback ondersteund voor GitHub Actions en andere runtimes.
 
 ## GitHub production environment
 
@@ -41,6 +41,8 @@ Voeg in Bolt minimaal toe:
 `PRICING_DB_REGION=eu-west-2`
 
 `PRICING_DB_PASSWORD=<database password>`
+
+Verwijder voorbeeldwaarden zoals `[YOUR-PASSWORD]`. Na iedere wijziging van Bolt runtime secrets is een nieuwe deployment nodig. Controleer daarna `/api/health`, `database.reachable` moet `true` zijn.
 
 `NEXTAUTH_SECRET=<random secret van minimaal 32 tekens>`
 

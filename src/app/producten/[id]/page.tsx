@@ -3,13 +3,14 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { runPriceCheckAction } from '@/app/actions/catalogActions'
 import { CompetitorOfferForm, ProductMarketForm } from '@/components/CatalogForms'
+import { DatabaseNotice } from '@/components/DatabaseNotice'
 import { DataTable } from '@/components/DataTable'
 import { PriceChart } from '@/components/PriceChart'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
 import { prisma } from '@/lib/prisma'
+import { safeDatabaseQuery } from '@/lib/safe-database'
 
-export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+async function loadProduct(id: string) {
   const [product, countries] = await Promise.all([
     prisma.product.findUnique({
       where: { id },
@@ -32,6 +33,18 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     }),
     prisma.country.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
   ])
+  return { product, countries }
+}
+
+export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const result = await safeDatabaseQuery<Awaited<ReturnType<typeof loadProduct>> | null>(() => loadProduct(id), null)
+
+  if (!result.available || !result.data) {
+    return <div className="space-y-4"><DatabaseNotice /><Link href="/producten" className="text-sm font-semibold text-sky-700">Terug naar producten</Link></div>
+  }
+
+  const { product, countries } = result.data
 
   if (!product) notFound()
 

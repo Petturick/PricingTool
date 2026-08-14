@@ -73,22 +73,25 @@ Open [http://localhost:3000](http://localhost:3000) in uw browser.
 
 ## Configuratie
 
-Kopieer `.env.example` naar `.env`. Gebruik voor Bolt bij voorkeur de exacte Transaction pooler URL uit **Supabase → Connect → Transaction pooler**. Zo worden de door Supabase toegewezen host en gebruiker niet door de applicatie afgeleid.
+Kopieer `.env.example` naar `.env`. Gebruik voor Bolt bij voorkeur `PRICING_DB_PASSWORD`. De applicatie combineert die met het vaste project en de toegewezen poolerhost. Een geldige componentwaarde vervangt bewust een verouderd wachtwoord in `PRICING_DATABASE_URL`.
 
 ```env
+PRICING_DB_PASSWORD="[DATABASE_PASSWORD]"
+
+# Alternatief, de exacte Transaction pooler URL uit Supabase Connect
 PRICING_DATABASE_URL="postgresql://postgres.xmedaatjwxkmwkjmwuuz:[DATABASE_PASSWORD]@[EXACT_POOLER_HOST]:6543/postgres"
 
 NEXTAUTH_SECRET="change-this-to-a-random-secret-of-at-least-32-characters"
 NEXTAUTH_URL="http://localhost:3000"
 ```
 
-Een bestaande componentconfiguratie met `PRICING_DB_PROJECT_ID`, `PRICING_DB_PASSWORD`, `PRICING_DB_POOLER_HOST` en `PRICING_DB_USER` blijft ondersteund. `DATABASE_URL` en de oudere `SUPABASE_PROJECT_ID`, `SUPABASE_DB_REGION` en `SUPABASE_DB_PASSWORD` variabelen blijven alleen als backwards-compatible fallback beschikbaar.
+Een bestaande componentconfiguratie met `PRICING_DB_PROJECT_ID`, `PRICING_DB_PASSWORD`, `PRICING_DB_POOLER_HOST` en `PRICING_DB_USER` blijft ondersteund. `PRICING_DATABASE_URL` en `DATABASE_URL` werken ook voor Prisma commandoregels. De oudere `SUPABASE_PROJECT_ID`, `SUPABASE_DB_REGION` en `SUPABASE_DB_PASSWORD` variabelen blijven alleen als backwards-compatible fallback beschikbaar.
 
 > **Opmerking:** Sla `.env` nooit op in versiebeheer. Alleen `.env.example` hoort in GitHub en bevat geen wachtwoorden of andere geheime waarden.
 
 ### Bolt preview
 
-De ontwikkelserver luistert expliciet op `0.0.0.0:3000`, Node 22 is vastgelegd in `package.json`, `.nvmrc` en `netlify.toml`, en de preview kan ook openen wanneer de database nog niet is ingesteld. Bolt gebruikt Supavisor transaction pooling op poort 6543, passend bij een serverless runtime. Een oudere `PRICING_DB_POOLER_PORT` of `SUPABASE_DB_POOLER_PORT` instelling wordt bewust genegeerd. Voeg in Bolt minimaal `PRICING_DATABASE_URL`, `NEXTAUTH_SECRET` en `NEXTAUTH_URL` toe als runtime secrets.
+De ontwikkelserver luistert expliciet op `0.0.0.0:3000`, Node 22 is vastgelegd in `package.json`, `.nvmrc` en `netlify.toml`, en de preview kan ook openen wanneer de database nog niet is ingesteld. Bolt gebruikt Supavisor transaction pooling op poort 6543, passend bij een serverless runtime. Een oudere `PRICING_DB_POOLER_PORT` of `SUPABASE_DB_POOLER_PORT` instelling wordt bewust genegeerd. Voeg in Bolt minimaal `PRICING_DB_PASSWORD`, `NEXTAUTH_SECRET` en `NEXTAUTH_URL` toe als runtime secrets. Gebruik nooit een voorbeeldwaarde zoals `[YOUR-PASSWORD]`.
 
 Gebruik `/api/health` om de runtime te controleren. Het endpoint blijft beschikbaar wanneer de database ontbreekt of tijdelijk niet bereikbaar is en retourneert afzonderlijk de applicatie- en databasestatus zonder credentials te tonen.
 
