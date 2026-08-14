@@ -6,7 +6,9 @@ Professioneel prijsmonitoring- en concurrentiedashboard voor Engels Group, gebou
 
 - **Dashboard** met live KPI's, grootste prijsbewegingen en mislukte controles
 - **Productoverzicht** met zoeken, sorteren, paginering en exportmogelijkheden
+- **Handmatige productinvoer** met beschikbaarheid, prijs, voorraad en webshop URL per land
 - **Productdetailpagina** met prijshistorie-grafiek en concurrentieaanbiedingen
+- **Concurrentkoppeling per product** met een directe eerste prijscontrole en periodieke vervolgcontroles
 - **Concurrentenoverzicht** per land/markt
 - **Productmatch-beheer** – goedkeuren, aanpassen of afwijzen van matches
 - **Import wizard** voor Prisync CSV- en XLSX-exports met kolomkoppeling
@@ -77,6 +79,7 @@ Kopieer `.env.example` naar `.env` en vul minimaal de volgende variabelen in. Bo
 PRICING_DB_PROJECT_ID="xmedaatjwxkmwkjmwuuz"
 PRICING_DB_REGION="eu-west-2"
 PRICING_DB_PASSWORD="your-database-password"
+PRICING_DB_POOLER_PORT="6543"
 
 NEXTAUTH_SECRET="change-this-to-a-random-secret-of-at-least-32-characters"
 NEXTAUTH_URL="http://localhost:3000"
@@ -88,7 +91,7 @@ NEXTAUTH_URL="http://localhost:3000"
 
 ### Bolt preview
 
-De ontwikkelserver luistert expliciet op `0.0.0.0:3000`, Node 22 is vastgelegd in `package.json`, `.nvmrc` en `netlify.toml`, en de preview kan ook openen wanneer de database nog niet is ingesteld. Voeg in Bolt minimaal `PRICING_DB_PROJECT_ID`, `PRICING_DB_REGION`, `PRICING_DB_PASSWORD`, `NEXTAUTH_SECRET` en `NEXTAUTH_URL` toe als runtime secrets.
+De ontwikkelserver luistert expliciet op `0.0.0.0:3000`, Node 22 is vastgelegd in `package.json`, `.nvmrc` en `netlify.toml`, en de preview kan ook openen wanneer de database nog niet is ingesteld. Bolt gebruikt standaard Supavisor transaction pooling op poort 6543, passend bij een serverless runtime. Voeg in Bolt minimaal `PRICING_DB_PROJECT_ID`, `PRICING_DB_REGION`, `PRICING_DB_PASSWORD`, `NEXTAUTH_SECRET` en `NEXTAUTH_URL` toe als runtime secrets. `PRICING_DB_POOLER_PORT` is optioneel en hoeft alleen op `5432` te staan bij een expliciet persistente backend.
 
 Gebruik `/api/health` om de runtime te controleren. Het endpoint blijft beschikbaar wanneer de database ontbreekt of tijdelijk niet bereikbaar is en retourneert afzonderlijk de applicatie- en databasestatus zonder credentials te tonen.
 
