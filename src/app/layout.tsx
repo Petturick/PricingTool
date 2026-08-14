@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: 'PrySight geeft grip op concurrentieprijzen, marktpositie, prijsbewegingen en marge-kansen.',
   applicationName: 'PrySight',
   icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }, { url: '/favicon.ico', sizes: 'any' }],
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
   },
 }
 
