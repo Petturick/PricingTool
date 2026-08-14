@@ -10,15 +10,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      BASE_URL: ${{ secrets.PRICING_TOOL_BASE_URL }}
+      BASE_URL: ${{ vars.PRICING_TOOL_BASE_URL || 'https://pricingtool.bolt.host' }}
       API_KEY: ${{ secrets.PRICE_MONITOR_API_KEY }}
     steps:
       - name: Run due price checks
         shell: bash
         run: |
-          if [ -z "$BASE_URL" ] || [ -z "$API_KEY" ]; then
-            echo "PRICING_TOOL_BASE_URL or PRICE_MONITOR_API_KEY is not configured, skipping."
-            exit 0
+          if [ -z "$API_KEY" ]; then
+            echo "::error::PRICE_MONITOR_API_KEY is not configured."
+            exit 1
           fi
           curl --fail-with-body --retry 2 --retry-delay 5 \
             -X POST "${BASE_URL%/}/api/prijscontroles" \

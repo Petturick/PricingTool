@@ -1,30 +1,50 @@
 export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import { runPriceCheckAction } from '@/app/actions/catalogActions'
+import { CompetitorOfferForm, ProductMarketForm } from '@/components/CatalogForms'
+import { DatabaseNotice } from '@/components/DatabaseNotice'
 import { DataTable } from '@/components/DataTable'
 import { PriceChart } from '@/components/PriceChart'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
 import { prisma } from '@/lib/prisma'
+import { safeDatabaseQuery } from '@/lib/safe-database'
 
-export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const product = await prisma.product.findUnique({
-    where: { id },
-    include: {
-      productGroup: true,
-      ownPriceHistory: { orderBy: { recordedAt: 'asc' } },
-      matches: {
-        include: {
-          competitorOffer: {
-            include: {
-              competitor: { include: { country: true } },
-              priceHistory: { orderBy: { recordedAt: 'asc' } },
-              priceChecks: { orderBy: { checkedAt: 'desc' }, take: 5 },
+async function loadProduct(id: string) {
+  const [product, countries] = await Promise.all([
+    prisma.product.findUnique({
+      where: { id },
+      include: {
+        productGroup: true,
+        markets: { include: { country: true }, orderBy: { country: { name: 'asc' } } },
+        ownPriceHistory: { orderBy: { recordedAt: 'asc' } },
+        matches: {
+          include: {
+            competitorOffer: {
+              include: {
+                competitor: { include: { country: true } },
+                priceHistory: { orderBy: { recordedAt: 'asc' } },
+                priceChecks: { orderBy: { checkedAt: 'desc' }, take: 5 },
+              },
             },
           },
         },
       },
-    },
-  })
+    }),
+    prisma.country.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
+  ])
+  return { product, countries }
+}
+
+export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const result = await safeDatabaseQuery<Awaited<ReturnType<typeof loadProduct>> | null>(() => loadProduct(id), null)
+
+  if (!result.available || !result.data) {
+    return <div className="space-y-4"><DatabaseNotice /><Link href="/producten" className="text-sm font-semibold text-sky-700">Terug naar producten</Link></div>
+  }
+
+  const { product, countries } = result.data
 
   if (!product) notFound()
 
@@ -57,6 +77,26 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
+      <DataTable
+        columns={[
+          { key: 'land', header: 'Land' },
+          { key: 'eigenPrijs', header: 'Eigen prijs' },
+          { key: 'voorraad', header: 'Voorraad' },
+          { key: 'url', header: 'Webshop URL' },
+          { key: 'status', header: 'Status' },
+        ]}
+        rows={product.markets.map((market) => ({
+          land: market.country.name,
+          eigenPrijs: formatCurrency(market.ownPrice, market.currency),
+          voorraad: market.stockStatus ?? '—',
+          url: market.ownUrl ? <Link href={market.ownUrl} target="_blank" rel="noreferrer" className="text-sky-700">Product openen</Link> : '—',
+          status: market.isActive ? 'Actief' : 'Inactief',
+        }))}
+      />
+
+      <ProductMarketForm productId={product.id} countries={countries} />
+      <CompetitorOfferForm productId={product.id} countries={countries} />
+
       <PriceChart data={chartData} />
 
       <DataTable
@@ -69,6 +109,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           { key: 'score', header: 'Score' },
           { key: 'voorraad', header: 'Voorraad' },
           { key: 'laatsteControle', header: 'Laatste controle' },
+          { key: 'actie', header: 'Actie' },
         ]}
         rows={product.matches.map((match) => ({
           concurrent: match.competitorOffer.competitor.name,
@@ -79,6 +120,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           score: `${formatNumber(match.confidenceScore)} / 100`,
           voorraad: match.competitorOffer.stockStatus ?? '—',
           laatsteControle: formatDate(match.competitorOffer.lastCheckedAt),
+          actie: (
+            <form action={runPriceCheckAction.bind(null, match.competitorOffer.id, product.id)}>
+              <button className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700">Nu controleren</button>
+            </form>
+          ),
         }))}
       />
 

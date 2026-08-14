@@ -1,11 +1,14 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
+import { withDatabaseRoute } from '@/lib/database-route'
 import { prisma } from '@/lib/prisma'
 import { competitorSchema } from '@/lib/validators'
 
 export async function GET() {
-  const competitors = await prisma.competitor.findMany({ include: { country: true }, orderBy: { name: 'asc' } })
-  return NextResponse.json(competitors)
+  return withDatabaseRoute(async () => {
+    const competitors = await prisma.competitor.findMany({ include: { country: true }, orderBy: { name: 'asc' } })
+    return NextResponse.json(competitors)
+  })
 }
 
 export async function POST(request: Request) {
@@ -14,6 +17,8 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ errors: parsed.error.flatten() }, { status: 400 })
   }
-  const competitor = await prisma.competitor.create({ data: parsed.data })
-  return NextResponse.json(competitor, { status: 201 })
+  return withDatabaseRoute(async () => {
+    const competitor = await prisma.competitor.create({ data: parsed.data })
+    return NextResponse.json(competitor, { status: 201 })
+  })
 }

@@ -1,9 +1,9 @@
-name: PricingTool Supabase Production
+name: PrySight Supabase Production
 
 on:
   workflow_run:
     workflows:
-      - PricingTool CI
+      - PrySight CI
     types:
       - completed
   workflow_dispatch:
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: pricingtool-supabase-production
+  group: prysight-supabase-production
   cancel-in-progress: false
 
 jobs:
@@ -65,7 +65,7 @@ jobs:
         if: steps.credentials.outputs.enabled == 'true'
         run: supabase init --force
 
-      - name: Link PricingTool production
+      - name: Link PrySight production
         if: steps.credentials.outputs.enabled == 'true'
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
 
@@ -84,6 +84,6 @@ jobs:
       - name: Deployment summary
         if: steps.credentials.outputs.enabled == 'true'
         run: |
-          echo "### PricingTool Supabase production deployment succeeded" >> "$GITHUB_STEP_SUMMARY"
+          echo "### PrySight Supabase production deployment succeeded" >> "$GITHUB_STEP_SUMMARY"
           echo "Project: xmedaatjwxkmwkjmwuuz" >> "$GITHUB_STEP_SUMMARY"
           echo "Commit: ${{ steps.target.outputs.sha }}" >> "$GITHUB_STEP_SUMMARY"

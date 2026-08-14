@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
+import { withDatabaseRoute } from '@/lib/database-route'
 import { prisma } from '@/lib/prisma'
 import { parseImportFile } from '@/lib/import-parser'
 
@@ -8,8 +9,10 @@ const ALLOWED_EXTENSIONS = ['.csv', '.xlsx']
 const MAX_ROWS = 50_000
 
 export async function GET() {
-  const tasks = await prisma.importTask.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' }, take: 25 })
-  return NextResponse.json(tasks)
+  return withDatabaseRoute(async () => {
+    const tasks = await prisma.importTask.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' }, take: 25 })
+    return NextResponse.json(tasks)
+  })
 }
 
 export async function POST(request: Request) {
