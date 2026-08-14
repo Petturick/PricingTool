@@ -15,6 +15,10 @@ Deze implementatie verplaatst PricingTool van een importgedreven dashboard naar 
 9. Productfeed API voor ERP, PIM of Magento data.
 10. GitHub Actions voor periodieke prijscontroles en wekelijkse rapportage.
 11. Nieuwe interface met rustigere kaarten, dunne lijnen, zachte statuskleuren en compactere informatiedichtheid.
+12. Handmatige productinvoer met selectie van één of meerdere actieve landen.
+13. Landinstellingen per product voor eigen prijs, voorraad, valuta en webshop URL.
+14. Handmatige concurrentkoppeling per product, inclusief directe eerste prijscontrole.
+15. Productfeeds vullen automatisch de juiste landinstellingen wanneer de feed aan een land is gekoppeld.
 
 ## Omgevingsvariabelen
 
