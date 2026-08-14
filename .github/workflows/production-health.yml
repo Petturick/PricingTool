@@ -1,9 +1,9 @@
-name: PricingTool production health
+name: PrySight production health
 
 on:
   workflow_run:
     workflows:
-      - PricingTool CI
+      - PrySight CI
     types:
       - completed
   schedule:
@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: pricingtool-production-health
+  group: prysight-production-health
   cancel-in-progress: true
 
 jobs:
