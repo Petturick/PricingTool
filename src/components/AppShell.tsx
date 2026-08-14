@@ -4,11 +4,12 @@ import { usePathname } from 'next/navigation'
 import { Sidebar } from '@/components/Sidebar'
 import { PrySightLogo } from '@/components/PrySightLogo'
 
+const marketingPaths = new Set(['/', '/features', '/pricing', '/about-us', '/request-demo'])
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const marketing = pathname === '/'
 
-  if (marketing) return <>{children}</>
+  if (marketingPaths.has(pathname)) return <>{children}</>
 
   return (
     <div className="flex min-h-screen">
