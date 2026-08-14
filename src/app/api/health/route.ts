@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
-import { getSafeDatabaseStatus } from '@/lib/database-url'
+import { Client } from 'pg'
+import { getSafeDatabaseStatus, resolveDatabaseConnection } from '@/lib/database-url'
 
 type ConnectionFailureReason =
   | 'authentication_failed'
@@ -78,8 +79,14 @@ export async function GET() {
   }
 
   try {
-    const { prisma } = await import('@/lib/prisma')
-    await prisma.$queryRawUnsafe('SELECT 1')
+    const { connectionString } = resolveDatabaseConnection()
+    const client = new Client({ connectionString, connectionTimeoutMillis: 10_000 })
+    try {
+      await client.connect()
+      await client.query('SELECT 1')
+    } finally {
+      await client.end().catch(() => undefined)
+    }
 
     return NextResponse.json({
       status: 'ok',
