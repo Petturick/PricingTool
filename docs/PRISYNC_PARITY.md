@@ -1,6 +1,6 @@
-# PricingTool, Prisync parity foundation
+# PrySight, Prisync parity foundation
 
-Deze implementatie verplaatst PricingTool van een importgedreven dashboard naar een platform met eigen monitoring, alerts, productfeeds en prijsadvies.
+Deze implementatie verplaatst PrySight van een importgedreven dashboard naar een platform met eigen monitoring, alerts, productfeeds en prijsadvies.
 
 ## Wat nu in de applicatie zit
 
