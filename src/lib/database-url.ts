@@ -2,7 +2,7 @@ const DIRECT_SUPABASE_HOST = /^db\.([a-z0-9]+)\.supabase\.co$/i
 
 const DEFAULT_SUPABASE_PROJECT_ID = 'xmedaatjwxkmwkjmwuuz'
 const DEFAULT_SUPABASE_REGION = 'eu-west-2'
-const DEFAULT_SUPAVISOR_PORT = '5432'
+const DEFAULT_SUPAVISOR_PORT = '6543'
 
 export type DatabaseConnectionInfo = {
   connectionString: string
@@ -12,7 +12,7 @@ export type DatabaseConnectionInfo = {
 }
 
 function normalizePoolerPort(value: string) {
-  return value.trim() === '6543' ? '6543' : DEFAULT_SUPAVISOR_PORT
+  return value.trim() === '5432' ? '5432' : DEFAULT_SUPAVISOR_PORT
 }
 
 function buildSupavisorConnection(projectId: string, password: string, region: string, poolerPort: string): DatabaseConnectionInfo {
@@ -28,10 +28,11 @@ function buildSupavisorConnection(projectId: string, password: string, region: s
 
 /**
  * PricingTool uses Supabase Supavisor because Bolt hosting may not have IPv6
- * access to the direct db.<project>.supabase.co hostname. Session pooling on
- * port 5432 is the most compatible default for Prisma + node-postgres. Set
- * PRICING_DB_POOLER_PORT=6543 only when transaction pooling is explicitly
- * required. Bolt-safe PRICING_DB_* names take precedence over legacy names.
+ * access to the direct db.<project>.supabase.co hostname. Bolt deployments are
+ * serverless, so Supavisor transaction pooling on port 6543 is the safe
+ * runtime default. Set PRICING_DB_POOLER_PORT=5432 only for a persistent
+ * backend that explicitly needs session pooling. Bolt-safe PRICING_DB_* names
+ * take precedence over legacy names.
  */
 export function resolveDatabaseConnection(
   rawConnectionString = process.env.DATABASE_URL ?? '',
