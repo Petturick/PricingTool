@@ -11,6 +11,7 @@ test('prefers explicit Supabase project configuration for production', () => {
   )
   const url = new URL(result.connectionString)
   assert.equal(result.mode, 'supavisor')
+  assert.equal(result.source, 'components')
   assert.equal(url.hostname, 'aws-0-eu-west-2.pooler.supabase.com')
   assert.equal(url.port, '6543')
   assert.equal(decodeURIComponent(url.username), 'postgres.xmedaatjwxkmwkjmwuuz')
@@ -18,6 +19,31 @@ test('prefers explicit Supabase project configuration for production', () => {
   assert.equal(url.searchParams.get('sslmode'), 'require')
   assert.equal(url.searchParams.get('uselibpqcompat'), 'true')
   assert.equal(url.searchParams.get('pgbouncer'), 'true')
+})
+
+test('uses an exact full pooler URL before component variables', () => {
+  const result = resolveDatabaseConnection(
+    'postgresql://exact.user:exact%20password@aws-1-eu-west-2.pooler.supabase.com:5432/postgres',
+    'eu-west-2',
+    'ignored-project',
+    'ignored-password',
+    'aws-0-eu-west-2.pooler.supabase.com',
+    'ignored.user',
+  )
+  const url = new URL(result.connectionString)
+  assert.equal(result.source, 'full_url')
+  assert.equal(url.hostname, 'aws-1-eu-west-2.pooler.supabase.com')
+  assert.equal(url.port, '6543')
+  assert.equal(decodeURIComponent(url.username), 'exact.user')
+  assert.equal(decodeURIComponent(url.password), 'exact password')
+})
+
+test('uses an explicit pooler host and user for component configuration', () => {
+  const result = resolveDatabaseConnection('', 'eu-west-2', 'project-ref', 'secret', 'aws-1-eu-west-2.pooler.supabase.com', 'custom.project-ref')
+  const url = new URL(result.connectionString)
+  assert.equal(result.source, 'components')
+  assert.equal(url.hostname, 'aws-1-eu-west-2.pooler.supabase.com')
+  assert.equal(decodeURIComponent(url.username), 'custom.project-ref')
 })
 
 test('ignores legacy session pooling overrides in the Bolt runtime', () => {
@@ -59,5 +85,5 @@ test('normalizes an explicitly configured pooler URL for Bolt', () => {
 
 test('reports missing database configuration without leaking values', () => {
   const result = resolveDatabaseConnection('', 'eu-west-2', '', '')
-  assert.deepEqual(result, { connectionString: '', configured: false, mode: 'missing', host: null })
+  assert.deepEqual(result, { connectionString: '', configured: false, mode: 'missing', host: null, source: 'missing' })
 })

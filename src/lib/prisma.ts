@@ -33,7 +33,7 @@ function createPrismaClient() {
   const adapter = new PrismaPg({
     connectionString,
     max: 1,
-    connectionTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 1_500,
     idleTimeoutMillis: 10_000,
   })
   return new PrismaClient({ adapter })
