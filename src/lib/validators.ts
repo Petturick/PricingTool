@@ -15,7 +15,6 @@ export const productSchema = z.object({
   stockStatus: z.string().optional().nullable(),
   isActive: z.coerce.boolean().default(true),
   notes: z.string().optional().nullable(),
-  countryIds: z.array(z.string().min(1)).optional(),
 })
 
 export const competitorSchema = z.object({

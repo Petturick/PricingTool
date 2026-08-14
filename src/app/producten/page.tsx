@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { DataTable } from '@/components/DataTable'
-import { ProductCreateForm } from '@/components/CatalogForms'
 import { DatabaseNotice } from '@/components/DatabaseNotice'
 import { deriveProductMetrics, getFilterOptions, getFilteredProducts } from '@/lib/dashboard'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
@@ -59,13 +58,6 @@ export default async function ProductenPage({ searchParams }: { searchParams: Pr
         </div>
         <Link href="/feeds" className="rounded-xl border border-[#d7e4ff] bg-[var(--blue-soft)] px-4 py-2 text-xs font-semibold text-[var(--blue)]">Productfeed beheren</Link>
       </div>
-
-      {result.available && (
-        <ProductCreateForm
-          countries={filterOptions.countries}
-          productGroups={filterOptions.productGroups}
-        />
-      )}
 
       <form className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-5">
         <input name="q" defaultValue={filters.q} placeholder="Zoek op artikel, EAN of naam" className="rounded-xl border border-slate-300 px-3 py-2 text-sm md:col-span-2" />

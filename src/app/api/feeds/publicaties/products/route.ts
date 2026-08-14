@@ -19,5 +19,5 @@ export async function GET(request: Request) {
   if (format === 'json') return NextResponse.json({ generatedAt: new Date().toISOString(), count: rows.length, products: rows })
   const headers = Object.keys(rows[0] ?? { articleNumber: '', ean: '', gtin: '', name: '', productGroup: '', ownPrice: '', currency: '', stockStatus: '', packagingUnit: '', packagingQty: '', updatedAt: '' })
   const csv = [headers.map(csvEscape).join(','), ...rows.map((row) => headers.map((header) => csvEscape(row[header as keyof typeof row])).join(','))].join('\n')
-  return new NextResponse(csv, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="prysight-products.csv"' } })
+  return new NextResponse(csv, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="pricingtool-products.csv"' } })
 }

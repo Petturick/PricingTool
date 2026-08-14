@@ -11,50 +11,18 @@ test('prefers explicit Supabase project configuration for production', () => {
   )
   const url = new URL(result.connectionString)
   assert.equal(result.mode, 'supavisor')
-  assert.equal(result.source, 'components')
   assert.equal(url.hostname, 'aws-0-eu-west-2.pooler.supabase.com')
-  assert.equal(url.port, '6543')
+  assert.equal(url.port, '5432')
   assert.equal(decodeURIComponent(url.username), 'postgres.xmedaatjwxkmwkjmwuuz')
   assert.equal(decodeURIComponent(url.password), 'secret with spaces')
   assert.equal(url.searchParams.get('sslmode'), 'require')
-  assert.equal(url.searchParams.get('uselibpqcompat'), 'true')
-  assert.equal(url.searchParams.get('pgbouncer'), 'true')
+  assert.equal(url.searchParams.get('pgbouncer'), null)
 })
 
-test('uses an exact full pooler URL before component variables', () => {
-  const result = resolveDatabaseConnection(
-    'postgresql://exact.user:exact%20password@aws-1-eu-west-2.pooler.supabase.com:5432/postgres',
-    'eu-west-2',
-    'ignored-project',
-    'ignored-password',
-    'aws-0-eu-west-2.pooler.supabase.com',
-    'ignored.user',
-  )
-  const url = new URL(result.connectionString)
-  assert.equal(result.source, 'full_url')
-  assert.equal(url.hostname, 'aws-1-eu-west-2.pooler.supabase.com')
-  assert.equal(url.port, '6543')
-  assert.equal(decodeURIComponent(url.username), 'exact.user')
-  assert.equal(decodeURIComponent(url.password), 'exact password')
-})
-
-test('uses an explicit pooler host and user for component configuration', () => {
-  const result = resolveDatabaseConnection('', 'eu-west-2', 'project-ref', 'secret', 'aws-1-eu-west-2.pooler.supabase.com', 'custom.project-ref')
-  const url = new URL(result.connectionString)
-  assert.equal(result.source, 'components')
-  assert.equal(url.hostname, 'aws-1-eu-west-2.pooler.supabase.com')
-  assert.equal(decodeURIComponent(url.username), 'custom.project-ref')
-})
-
-test('ignores legacy session pooling overrides in the Bolt runtime', () => {
-  const original = process.env.PRICING_DB_POOLER_PORT
-  process.env.PRICING_DB_POOLER_PORT = '5432'
-  const result = resolveDatabaseConnection('', 'eu-west-2', 'xmedaatjwxkmwkjmwuuz', 'secret')
-  if (original === undefined) delete process.env.PRICING_DB_POOLER_PORT
-  else process.env.PRICING_DB_POOLER_PORT = original
+test('supports transaction pooling only when explicitly requested', () => {
+  const result = resolveDatabaseConnection('', 'eu-west-2', 'xmedaatjwxkmwkjmwuuz', 'secret', '6543')
   const url = new URL(result.connectionString)
   assert.equal(url.port, '6543')
-  assert.equal(url.searchParams.get('uselibpqcompat'), 'true')
   assert.equal(url.searchParams.get('pgbouncer'), 'true')
 })
 
@@ -68,22 +36,18 @@ test('converts a direct Supabase URL to the configured pooler region', () => {
   const url = new URL(result.connectionString)
   assert.equal(result.mode, 'supavisor')
   assert.equal(url.hostname, 'aws-0-eu-west-1.pooler.supabase.com')
-  assert.equal(url.port, '6543')
-  assert.equal(url.searchParams.get('pgbouncer'), 'true')
+  assert.equal(url.port, '5432')
   assert.equal(decodeURIComponent(url.username), 'postgres.fdnkzcpqyjajjawrwihl')
 })
 
-test('normalizes an explicitly configured pooler URL for Bolt', () => {
-  const source = 'postgresql://postgres.ref:secret@aws-0-eu-west-1.pooler.supabase.com:5432/postgres?sslmode=require'
+test('preserves an explicitly configured pooler URL', () => {
+  const source = 'postgresql://postgres.ref:secret@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=require'
   const result = resolveDatabaseConnection(source, 'eu-west-1', '', '')
-  const url = new URL(result.connectionString)
+  assert.equal(result.connectionString, source)
   assert.equal(result.mode, 'supavisor')
-  assert.equal(url.port, '6543')
-  assert.equal(url.searchParams.get('uselibpqcompat'), 'true')
-  assert.equal(url.searchParams.get('pgbouncer'), 'true')
 })
 
 test('reports missing database configuration without leaking values', () => {
   const result = resolveDatabaseConnection('', 'eu-west-2', '', '')
-  assert.deepEqual(result, { connectionString: '', configured: false, mode: 'missing', host: null, source: 'missing' })
+  assert.deepEqual(result, { connectionString: '', configured: false, mode: 'missing', host: null })
 })

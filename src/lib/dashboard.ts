@@ -13,7 +13,6 @@ export type DashboardFilters = {
 
 const productInclude = {
   productGroup: true,
-  markets: { include: { country: true } },
   ownPriceHistory: { orderBy: { recordedAt: 'desc' as const }, take: 8 },
   matches: {
     include: {
@@ -58,7 +57,6 @@ export async function getFilteredProducts(filters: DashboardFilters = {}) {
     where: {
       isActive: true,
       productGroupId: filters.productGroupId || undefined,
-      markets: filters.countryId ? { some: { countryId: filters.countryId, isActive: true } } : undefined,
       OR: filters.q
         ? [
             { articleNumber: { contains: filters.q } },
@@ -90,10 +88,7 @@ export function deriveProductMetrics(product: ProductWithRelations, filters: Das
   const averagePrice = prices.length ? prices.reduce((sum, value) => sum + value, 0) / prices.length : null
   const lastCheckedDates = relevantMatches.map((match) => match.competitorOffer.lastCheckedAt).filter((value): value is Date => Boolean(value))
   const lastCheckedAt = lastCheckedDates.length ? new Date(Math.max(...lastCheckedDates.map((value) => value.getTime()))) : null
-  const selectedMarket = filters.countryId
-    ? product.markets.find((market) => market.countryId === filters.countryId && market.isActive)
-    : null
-  const ownPrice = decimalToNumber(selectedMarket?.ownPrice ?? product.ownPrice)
+  const ownPrice = decimalToNumber(product.ownPrice)
   const difference = calculatePriceDifference(ownPrice, lowestPrice)
   const trendSource = pricedOffers
     .flatMap((match) => match.competitorOffer.priceHistory)

@@ -1,4 +1,4 @@
-name: PrySight CI
+name: PricingTool CI
 
 on:
   pull_request:

@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/format'
-import { PrySightLogo } from '@/components/PrySightLogo'
 
 type IconName = 'dashboard' | 'products' | 'competitors' | 'matches' | 'alerts' | 'strategy' | 'reports' | 'feeds' | 'import' | 'integrations' | 'settings'
 
@@ -46,7 +45,12 @@ export function Sidebar() {
   const pathname = usePathname()
   return (
     <aside className="flex h-full w-full max-w-[272px] flex-col border-r border-[var(--border)] bg-white text-[#202536]">
-      <div className="border-b border-[var(--border)] px-5 py-5"><Link href="/"><PrySightLogo /></Link></div>
+      <div className="border-b border-[var(--border)] px-5 py-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 17 9 12l3 3 7-8" /><path d="M15 7h4v4" /></svg></div>
+          <div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a94a6]">Engels Group</p><h1 className="mt-0.5 text-[17px] font-semibold tracking-[-0.01em] text-[#171b28]">Pricing intelligence</h1></div>
+        </div>
+      </div>
       <nav className="flex-1 overflow-y-auto px-3 py-5">
         {groups.map((group, groupIndex) => (
           <div key={group.label} className={groupIndex === 0 ? '' : 'mt-6'}>
@@ -54,13 +58,13 @@ export function Sidebar() {
             <div className="space-y-1">
               {group.items.map((item) => {
                 const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
-                return <Link key={item.href} href={item.href} className={cn('focus-ring flex items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-[13px] font-medium text-[#596174] transition-colors hover:bg-[#f8f9fc] hover:text-[#202536]', active && 'border-[#dbe4f5] bg-[var(--brand-blue-soft)] text-[var(--brand-blue)]')}><span className={cn('text-[#8b95a7]', active && 'text-[var(--brand-blue)]')}><NavIcon name={item.icon} /></span><span>{item.label}</span></Link>
+                return <Link key={item.href} href={item.href} className={cn('focus-ring flex items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-[13px] font-medium text-[#596174] transition-colors hover:bg-[#f8f9fc] hover:text-[#202536]', active && 'border-[#ffd7dd] bg-[var(--accent-soft)] text-[var(--accent)]')}><span className={cn('text-[#8b95a7]', active && 'text-[var(--accent)]')}><NavIcon name={item.icon} /></span><span>{item.label}</span></Link>
               })}
             </div>
           </div>
         ))}
       </nav>
-      <div className="border-t border-[var(--border)] p-4"><div className="rounded-2xl border border-[var(--border)] bg-[#fbfcfe] p-3.5"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[var(--brand-mint)]" /><p className="text-xs font-semibold text-[#303647]">Engels Group workspace</p></div><p className="mt-1.5 text-[11px] leading-5 text-[#7b8497]">Monitor, vergelijk, adviseer en automatiseer in PrySight.</p></div></div>
+      <div className="border-t border-[var(--border)] p-4"><div className="rounded-2xl border border-[var(--border)] bg-[#fbfcfe] p-3.5"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[var(--green)]" /><p className="text-xs font-semibold text-[#303647]">Pricing workspace</p></div><p className="mt-1.5 text-[11px] leading-5 text-[#7b8497]">Monitor, vergelijk, adviseer en automatiseer vanuit één omgeving.</p></div></div>
     </aside>
   )
 }

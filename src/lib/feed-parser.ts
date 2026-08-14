@@ -169,7 +169,7 @@ export async function fetchAndParseFeed(value: string) {
   const response = await fetch(requested, {
     redirect: 'follow',
     signal: AbortSignal.timeout(30_000),
-    headers: { 'User-Agent': 'PrySight Feed Importer/1.0' },
+    headers: { 'User-Agent': 'PricingTool Feed Importer/1.0' },
   })
   if (!response.ok) throw new Error(`Feed ophalen mislukt met HTTP ${response.status}.`)
   validateFeedUrl(response.url)

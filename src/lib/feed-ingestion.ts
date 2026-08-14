@@ -109,9 +109,7 @@ async function saveMappings(feedSourceId: string, mappings: Mapping[]) {
   }
 }
 
-type FeedMarket = { id: string; currency: string } | null
-
-async function importOneProduct(feedSourceId: string, rowIndex: number, raw: Record<string, unknown>, mapped: CanonicalFeedProduct, market: FeedMarket) {
+async function importOneProduct(feedSourceId: string, rowIndex: number, raw: Record<string, unknown>, mapped: CanonicalFeedProduct) {
   const articleNumber = stringValue(mapped.articleNumber)
   const name = stringValue(mapped.name)
   if (!articleNumber || !name) throw new Error('Artikelnummer/SKU en productnaam zijn verplicht.')
@@ -160,26 +158,6 @@ async function importOneProduct(feedSourceId: string, rowIndex: number, raw: Rec
     })
   }
 
-  if (market) {
-    await prisma.productMarket.upsert({
-      where: { productId_countryId: { productId: product.id, countryId: market.id } },
-      update: {
-        ownPrice: ownPrice ?? undefined,
-        currency: stringValue(mapped.currency) ?? market.currency,
-        stockStatus: stringValue(mapped.stockStatus) ?? undefined,
-        isActive: booleanValue(mapped.isActive, true),
-      },
-      create: {
-        productId: product.id,
-        countryId: market.id,
-        ownPrice,
-        currency: stringValue(mapped.currency) ?? market.currency,
-        stockStatus: stringValue(mapped.stockStatus),
-        isActive: booleanValue(mapped.isActive, true),
-      },
-    })
-  }
-
   const sourceUpdatedAt = stringValue(mapped.sourceUpdatedAt)
   const parsedSourceDate = sourceUpdatedAt && !Number.isNaN(Date.parse(sourceUpdatedAt)) ? new Date(sourceUpdatedAt) : null
   await prisma.productFeedLink.upsert({
@@ -203,12 +181,7 @@ async function importOneProduct(feedSourceId: string, rowIndex: number, raw: Rec
   return product
 }
 
-async function processCanonicalRows(feedSourceId: string, rows: Array<{ raw: Record<string, unknown>; mapped: CanonicalFeedProduct }>, countryCode = 'GLOBAL') {
-  const market = countryCode === 'GLOBAL'
-    ? null
-    : await prisma.country.findFirst({ where: { code: countryCode.toUpperCase(), isActive: true }, select: { id: true, currency: true } })
-  if (countryCode !== 'GLOBAL' && !market) throw new Error(`Landcode ${countryCode} bestaat niet of is niet actief.`)
-
+async function processCanonicalRows(feedSourceId: string, rows: Array<{ raw: Record<string, unknown>; mapped: CanonicalFeedProduct }>) {
   await prisma.feedItem.deleteMany({ where: { feedSourceId } })
   let imported = 0
   let errors = 0
@@ -216,7 +189,7 @@ async function processCanonicalRows(feedSourceId: string, rows: Array<{ raw: Rec
 
   for (const [index, item] of rows.entries()) {
     try {
-      await importOneProduct(feedSourceId, index + 1, item.raw, item.mapped, market)
+      await importOneProduct(feedSourceId, index + 1, item.raw, item.mapped)
       imported += 1
     } catch (error) {
       errors += 1
@@ -292,7 +265,7 @@ export async function syncFeedSource(feedSourceId: string) {
     const parsed = await fetchAndParseFeed(source.url)
     const mappings = inferMappings(parsed.headers, parsed.rows[0] ?? {})
     await saveMappings(feedSourceId, mappings)
-    const processed = await processCanonicalRows(feedSourceId, parsedRows(parsed, mappings), source.countryCode)
+    const processed = await processCanonicalRows(feedSourceId, parsedRows(parsed, mappings))
     await prisma.feedSource.update({ where: { id: feedSourceId }, data: { format: parsed.format as FeedFormat, isActive: true } })
     await completeRun(feedSourceId, run.id, { itemCount: parsed.rows.length, errors: processed.errors, message: `${processed.imported} producten bijgewerkt.` })
     return { rows: parsed.rows.length, columns: parsed.headers.length, format: parsed.format, ...processed }
@@ -320,7 +293,7 @@ export async function ingestCanonicalProducts(input: {
   try {
     const headers = [...new Set(input.products.flatMap((item) => Object.keys(item)))]
     await saveMappings(source.id, headers.map((sourceColumn) => ({ sourceColumn, targetField: sourceColumn, sampleValue: stringValue(input.products[0]?.[sourceColumn]) ?? '' })))
-    const processed = await processCanonicalRows(source.id, input.products.map((product) => ({ raw: product, mapped: product })), source.countryCode)
+    const processed = await processCanonicalRows(source.id, input.products.map((product) => ({ raw: product, mapped: product })))
     await completeRun(source.id, run.id, { itemCount: input.products.length, errors: processed.errors, message: `${processed.imported} producten via API bijgewerkt.` })
     return { feedSourceId: source.id, rows: input.products.length, ...processed }
   } catch (error) {

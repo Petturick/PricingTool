@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
-import { createCatalogProduct } from '@/lib/catalog'
+import { Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { productSchema } from '@/lib/validators'
 
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
           ]
         : undefined,
     },
-    include: { productGroup: true, markets: { include: { country: true } } },
+    include: { productGroup: true },
     orderBy: { articleNumber: 'asc' },
   })
   return NextResponse.json(products)
@@ -30,6 +30,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ errors: parsed.error.flatten() }, { status: 400 })
   }
 
-  const product = await createCatalogProduct(parsed.data)
+  const product = await prisma.product.create({
+    data: {
+      ...parsed.data,
+      ownPrice: parsed.data.ownPrice === null || parsed.data.ownPrice === undefined ? null : new Prisma.Decimal(parsed.data.ownPrice),
+    },
+  })
   return NextResponse.json(product, { status: 201 })
 }
