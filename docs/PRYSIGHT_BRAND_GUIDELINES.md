@@ -22,7 +22,7 @@ Canonical assets:
 - `public/brand/prysight-logo.svg` - primary horizontal lockup.
 - `public/brand/prysight-logo-reversed.svg` - dark-surface lockup.
 - `public/brand/prysight-mark.svg` - icon, avatar and favicon source.
-- `src/app/favicon.ico` and `src/app/icon.svg` - browser/application icons.
+- `src/app/icon.svg` - canonical browser/application icon used by Next.js.
 
 Keep clear space around the logo. Do not stretch, rotate, recolor individual elements, add glow/shadows, or alter the spelling **PrySight**.
 
