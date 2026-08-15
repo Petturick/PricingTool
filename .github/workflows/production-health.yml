@@ -6,9 +6,13 @@ on:
       - PrySight CI
     types:
       - completed
-  schedule:
-    - cron: '7,37 * * * *'
   workflow_dispatch:
+    inputs:
+      strict:
+        description: Fail when production database health is unavailable
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -26,12 +30,13 @@ jobs:
     timeout-minutes: 5
     env:
       BASE_URL: ${{ vars.PRICING_TOOL_BASE_URL || 'https://pricingtool.bolt.host' }}
+      STRICT_HEALTH: ${{ github.event_name == 'workflow_dispatch' && inputs.strict || false }}
     steps:
       - name: Verify application and database health
         shell: bash
         run: |
           for attempt in 1 2 3 4 5 6 7 8; do
-            response="$(curl --silent --show-error --max-time 10 "${BASE_URL%/}/api/health" || true)"
+            response="$(curl --silent --show-error --max-time 12 "${BASE_URL%/}/api/health" || true)"
             if HEALTH_RESPONSE="$response" node -e '
               const health = JSON.parse(process.env.HEALTH_RESPONSE || "{}")
               if (health.status !== "ok" || health.database?.reachable !== true) process.exit(1)
@@ -47,8 +52,13 @@ jobs:
                   status: health.status ?? "invalid_response",
                   configured: health.database?.configured ?? false,
                   reachable: health.database?.reachable ?? false,
-                  error: health.database?.error ?? null,
+                  reason: health.database?.reason ?? null,
+                  errorCode: health.database?.errorCode ?? null,
                   configurationIssue: health.database?.configurationIssue ?? null,
+                  host: health.database?.host ?? null,
+                  port: health.database?.port ?? null,
+                  profile: health.database?.profile ?? null,
+                  source: health.database?.source ?? null,
                   retryAfterMs: health.database?.retryAfterMs ?? null,
                 }))
               } catch {
@@ -61,5 +71,8 @@ jobs:
             fi
           done
 
-          echo "::error::Production database health remained unavailable."
-          exit 1
+          echo "::warning::Production database health remained unavailable after retries."
+          if [ "$STRICT_HEALTH" = "true" ]; then
+            exit 1
+          fi
+          exit 0

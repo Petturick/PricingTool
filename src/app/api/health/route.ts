@@ -50,7 +50,7 @@ export async function GET() {
 
   try {
     const { connectionString } = resolveDatabaseConnection()
-    const client = new Client({ connectionString, connectionTimeoutMillis: 1_200 })
+    const client = new Client({ connectionString, connectionTimeoutMillis: 6_000 })
     try {
       await client.connect()
       await client.query('SELECT 1')
