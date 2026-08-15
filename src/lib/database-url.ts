@@ -2,8 +2,7 @@ const DIRECT_SUPABASE_HOST = /^db\.([a-z0-9]+)\.supabase\.co$/i
 
 const DEFAULT_SUPABASE_PROJECT_ID = 'xmedaatjwxkmwkjmwuuz'
 const DEFAULT_SUPABASE_REGION = 'eu-west-2'
-const DEFAULT_SUPAVISOR_PORT = '6543'
-const SUPAVISOR_PROFILE = 'supavisor_transaction_tls_v3'
+const DEFAULT_SUPAVISOR_PORT = '5432'
 
 export type DatabaseConnectionInfo = {
   connectionString: string
@@ -14,12 +13,18 @@ export type DatabaseConnectionInfo = {
   configurationIssue: 'invalid_url' | 'missing_password' | 'placeholder_password' | null
 }
 
-function configureSupavisorUrl(url: URL) {
-  url.port = DEFAULT_SUPAVISOR_PORT
+function normalizePoolerPort(value: string) {
+  return value.trim() === '6543' ? '6543' : DEFAULT_SUPAVISOR_PORT
+}
+
+function configureSupavisorUrl(url: URL, poolerPort: string) {
+  const port = normalizePoolerPort(poolerPort)
+  url.port = port
   url.searchParams.set('sslmode', 'require')
   url.searchParams.set('uselibpqcompat', 'true')
-  url.searchParams.set('pgbouncer', 'true')
   url.searchParams.set('application_name', 'pricingtool')
+  if (port === '6543') url.searchParams.set('pgbouncer', 'true')
+  else url.searchParams.delete('pgbouncer')
   url.searchParams.delete('connection_limit')
   url.searchParams.delete('connect_timeout')
   url.searchParams.delete('pool_timeout')
@@ -32,11 +37,18 @@ function cleanPoolerHost(value: string, region: string) {
   return candidate.toLowerCase().endsWith('.pooler.supabase.com') ? candidate.toLowerCase() : fallback
 }
 
-function buildSupavisorConnection(projectId: string, password: string, region: string, poolerHost: string, poolerUser: string): DatabaseConnectionInfo {
+function buildSupavisorConnection(
+  projectId: string,
+  password: string,
+  region: string,
+  poolerHost: string,
+  poolerUser: string,
+  poolerPort: string,
+): DatabaseConnectionInfo {
   const username = encodeURIComponent(poolerUser.trim() || `postgres.${projectId}`)
   const encodedPassword = encodeURIComponent(password)
   const host = cleanPoolerHost(poolerHost, region)
-  const url = configureSupavisorUrl(new URL(`postgresql://${username}:${encodedPassword}@${host}/postgres`))
+  const url = configureSupavisorUrl(new URL(`postgresql://${username}:${encodedPassword}@${host}/postgres`), poolerPort)
   const connectionString = url.toString()
   return { connectionString, configured: true, mode: 'supavisor', host, source: 'components', configurationIssue: null }
 }
@@ -63,13 +75,11 @@ function normalizePoolerUser(url: URL, projectId: string) {
 
 /**
  * PricingTool uses Supabase Supavisor because Bolt hosting may not have IPv6
- * access to the direct db.<project>.supabase.co hostname. Bolt deployments are
- * serverless, so Supavisor transaction pooling on port 6543 is enforced.
- * A component password wins when present, while an assigned host from a full
- * URL is retained. This lets a rotated PRICING_DB_PASSWORD repair a stale full
- * URL without falling back to a guessed pooler cluster. `uselibpqcompat=true`
- * keeps node-postgres SSL `require`
- * semantics aligned with Supabase while retaining encryption.
+ * access to the direct db.<project>.supabase.co hostname. Session pooling on
+ * port 5432 is the compatibility-first default for Prisma + node-postgres in
+ * the Bolt runtime. Transaction pooling on port 6543 remains available through
+ * PRICING_DB_POOLER_PORT when it is explicitly required. A component password
+ * wins when present, while an assigned host from a full URL is retained.
  */
 export function resolveDatabaseConnection(
   rawConnectionString = process.env.PRICING_DATABASE_URL ?? process.env.DATABASE_URL ?? '',
@@ -78,6 +88,7 @@ export function resolveDatabaseConnection(
   dbPassword = process.env.PRICING_DB_PASSWORD ?? process.env.SUPABASE_DB_PASSWORD ?? '',
   poolerHost = process.env.PRICING_DB_POOLER_HOST ?? '',
   poolerUser = process.env.PRICING_DB_USER ?? '',
+  poolerPort = process.env.PRICING_DB_POOLER_PORT ?? process.env.SUPABASE_DB_POOLER_PORT ?? DEFAULT_SUPAVISOR_PORT,
 ): DatabaseConnectionInfo {
   const cleanProjectId = projectId.trim()
   const cleanPassword = dbPassword.trim()
@@ -102,7 +113,7 @@ export function resolveDatabaseConnection(
     const assignedUsername = parsedUrl?.hostname.endsWith('.pooler.supabase.com')
       ? `${decoded(parsedUrl.username).split('.')[0] || 'postgres'}.${cleanProjectId}`
       : poolerUser
-    return buildSupavisorConnection(cleanProjectId, cleanPassword, cleanRegion, assignedHost, assignedUsername)
+    return buildSupavisorConnection(cleanProjectId, cleanPassword, cleanRegion, assignedHost, assignedUsername, poolerPort)
   }
 
   if (parsedUrl) {
@@ -119,7 +130,7 @@ export function resolveDatabaseConnection(
 
     if (!directMatch) {
       normalizePoolerUser(url, cleanProjectId)
-      configureSupavisorUrl(url)
+      configureSupavisorUrl(url, poolerPort)
       return { connectionString: url.toString(), configured: true, mode: 'supavisor', host: url.hostname, source: 'full_url', configurationIssue: null }
     }
 
@@ -127,7 +138,7 @@ export function resolveDatabaseConnection(
     const baseUsername = decoded(url.username).split('.')[0] || 'postgres'
     url.hostname = cleanPoolerHost(poolerHost, cleanRegion)
     url.username = `${baseUsername}.${projectRef}`
-    configureSupavisorUrl(url)
+    configureSupavisorUrl(url, poolerPort)
     return { connectionString: url.toString(), configured: true, mode: 'supavisor', host: url.hostname, source: 'full_url', configurationIssue: null }
   }
 
@@ -149,6 +160,8 @@ export function getSafeDatabaseStatus() {
     source: resolved.source,
     configurationIssue: resolved.configurationIssue,
     port,
-    profile: resolved.mode === 'supavisor' ? SUPAVISOR_PROFILE : null,
+    profile: resolved.mode === 'supavisor'
+      ? (port === '6543' ? 'supavisor_transaction_tls_v3' : 'supavisor_session_tls_v3')
+      : null,
   }
 }
