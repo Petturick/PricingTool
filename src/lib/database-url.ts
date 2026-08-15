@@ -76,10 +76,9 @@ function normalizePoolerUser(url: URL, projectId: string) {
 /**
  * PricingTool uses Supabase Supavisor because Bolt hosting may not have IPv6
  * access to the direct db.<project>.supabase.co hostname. Session pooling on
- * port 5432 is the compatibility-first default for Prisma + node-postgres in
- * the Bolt runtime. Transaction pooling on port 6543 remains available through
- * PRICING_DB_POOLER_PORT when it is explicitly required. A component password
- * wins when present, while an assigned host from a full URL is retained.
+ * port 5432 is enforced for the normal runtime because a stale Bolt secret can
+ * otherwise push production back to the failing 6543 route. Transaction mode
+ * remains available only to explicit internal callers that pass 6543.
  */
 export function resolveDatabaseConnection(
   rawConnectionString = process.env.PRICING_DATABASE_URL ?? process.env.DATABASE_URL ?? '',
@@ -88,7 +87,7 @@ export function resolveDatabaseConnection(
   dbPassword = process.env.PRICING_DB_PASSWORD ?? process.env.SUPABASE_DB_PASSWORD ?? '',
   poolerHost = process.env.PRICING_DB_POOLER_HOST ?? '',
   poolerUser = process.env.PRICING_DB_USER ?? '',
-  poolerPort = process.env.PRICING_DB_POOLER_PORT ?? process.env.SUPABASE_DB_POOLER_PORT ?? DEFAULT_SUPAVISOR_PORT,
+  poolerPort = DEFAULT_SUPAVISOR_PORT,
 ): DatabaseConnectionInfo {
   const cleanProjectId = projectId.trim()
   const cleanPassword = dbPassword.trim()
