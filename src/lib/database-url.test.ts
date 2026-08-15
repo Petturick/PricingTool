@@ -82,12 +82,30 @@ test('uses an explicit pooler host and user for component configuration', () => 
   assert.equal(decodeURIComponent(url.username), 'custom.project-ref')
 })
 
-test('supports explicit transaction pooling when requested', () => {
+test('supports explicit transaction pooling for internal callers', () => {
   const result = resolveDatabaseConnection('', 'eu-west-2', 'xmedaatjwxkmwkjmwuuz', 'secret', '', '', '6543')
   const url = new URL(result.connectionString)
   assert.equal(url.port, '6543')
   assert.equal(url.searchParams.get('uselibpqcompat'), 'true')
   assert.equal(url.searchParams.get('pgbouncer'), 'true')
+})
+
+test('ignores a stale Bolt pooler port secret in the normal runtime', () => {
+  const originalPricing = process.env.PRICING_DB_POOLER_PORT
+  const originalSupabase = process.env.SUPABASE_DB_POOLER_PORT
+  process.env.PRICING_DB_POOLER_PORT = '6543'
+  process.env.SUPABASE_DB_POOLER_PORT = '6543'
+  try {
+    const result = resolveDatabaseConnection('', 'eu-west-2', 'xmedaatjwxkmwkjmwuuz', 'secret')
+    const url = new URL(result.connectionString)
+    assert.equal(url.port, '5432')
+    assert.equal(url.searchParams.get('pgbouncer'), null)
+  } finally {
+    if (originalPricing === undefined) delete process.env.PRICING_DB_POOLER_PORT
+    else process.env.PRICING_DB_POOLER_PORT = originalPricing
+    if (originalSupabase === undefined) delete process.env.SUPABASE_DB_POOLER_PORT
+    else process.env.SUPABASE_DB_POOLER_PORT = originalSupabase
+  }
 })
 
 test('converts a direct Supabase URL to the configured pooler region', () => {
