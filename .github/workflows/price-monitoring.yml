@@ -5,6 +5,13 @@ on:
     - cron: '17 */6 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: pricing-monitor
+  cancel-in-progress: false
+
 jobs:
   monitor:
     runs-on: ubuntu-latest
@@ -13,15 +20,67 @@ jobs:
       BASE_URL: ${{ vars.PRICING_TOOL_BASE_URL || 'https://pricingtool.bolt.host' }}
       API_KEY: ${{ secrets.PRICE_MONITOR_API_KEY }}
     steps:
-      - name: Run due price checks
+      - name: Validate monitor configuration
+        id: config
         shell: bash
         run: |
-          if [ -z "$API_KEY" ]; then
-            echo "::error::PRICE_MONITOR_API_KEY is not configured."
-            exit 1
+          set -euo pipefail
+          if [ -z "${API_KEY:-}" ]; then
+            echo "::warning title=Pricing monitor paused::PRICE_MONITOR_API_KEY is not configured. The scheduled monitor is skipped until the secret is added."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          curl --fail-with-body --retry 2 --retry-delay 5 \
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: Run due price checks
+        if: steps.config.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+
+          set +e
+          http_code="$(curl --silent --show-error --location \
+            --retry 4 \
+            --retry-all-errors \
+            --retry-delay 5 \
+            --connect-timeout 15 \
+            --max-time 180 \
+            -o "$response_file" \
+            -w '%{http_code}' \
             -X POST "${BASE_URL%/}/api/prijscontroles" \
             -H "Authorization: Bearer ${API_KEY}" \
             -H "Content-Type: application/json" \
-            --data '{"limit":80}'
+            --data '{"limit":80}')"
+          curl_exit=$?
+          set -e
+
+          if [ -s "$response_file" ]; then
+            cat "$response_file"
+            echo
+          fi
+
+          if [ "$curl_exit" -ne 0 ]; then
+            echo "::error title=Pricing monitor request failed::The request failed after retries with curl exit code ${curl_exit}."
+            exit "$curl_exit"
+          fi
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "::error title=Pricing monitor API error::The API returned HTTP ${http_code}."
+            exit 1
+          fi
+
+          echo "Pricing monitor completed successfully with HTTP ${http_code}." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report paused monitor
+        if: steps.config.outputs.enabled == 'false'
+        shell: bash
+        run: |
+          {
+            echo "## Pricing monitor paused"
+            echo
+            echo "PRICE_MONITOR_API_KEY is not configured in GitHub Actions, so this scheduled run was skipped without failing the workflow."
+            echo
+            echo "Add the same secret value to GitHub Actions and the production runtime to activate price monitoring."
+          } >> "$GITHUB_STEP_SUMMARY"
