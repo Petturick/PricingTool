@@ -58,7 +58,12 @@ export async function createCatalogProduct(input: CatalogProductInput) {
     throw new Error('Een of meer geselecteerde landen bestaan niet of zijn niet actief.')
   }
 
+  const productCurrency = (input.currency ?? countries[0]?.currency ?? 'EUR').toUpperCase()
   const ownPrice = decimal(input.ownPrice)
+  if (ownPrice && countries.some((country) => country.currency.toUpperCase() !== productCurrency)) {
+    throw new Error('Eén eigen prijs kan alleen tegelijk aan landen met dezelfde valuta worden toegewezen. Voeg markten met een andere valuta daarna apart toe.')
+  }
+
   return prisma.$transaction(async (tx) => {
     const product = await tx.product.create({
       data: {
@@ -71,7 +76,7 @@ export async function createCatalogProduct(input: CatalogProductInput) {
         vatIncluded: input.vatIncluded ?? true,
         packagingUnit: input.packagingUnit,
         packagingQty: input.packagingQty ?? 1,
-        currency: input.currency ?? 'EUR',
+        currency: productCurrency,
         stockStatus: input.stockStatus,
         notes: input.notes,
         isActive: input.isActive ?? true,
@@ -79,7 +84,7 @@ export async function createCatalogProduct(input: CatalogProductInput) {
           create: countries.map((country) => ({
             countryId: country.id,
             ownPrice,
-            currency: input.currency ?? country.currency,
+            currency: country.currency,
             stockStatus: input.stockStatus,
             isActive: true,
           })),
@@ -88,14 +93,27 @@ export async function createCatalogProduct(input: CatalogProductInput) {
     })
 
     if (ownPrice) {
-      await tx.ownPriceHistory.create({
-        data: {
-          productId: product.id,
-          recordedAt: new Date(),
-          price: ownPrice,
-          currency: product.currency,
-        },
-      })
+      if (countries.length > 0) {
+        await tx.ownPriceHistory.createMany({
+          data: countries.map((country) => ({
+            productId: product.id,
+            countryId: country.id,
+            recordedAt: new Date(),
+            price: ownPrice,
+            currency: country.currency,
+          })),
+        })
+      } else {
+        await tx.ownPriceHistory.create({
+          data: {
+            productId: product.id,
+            countryId: null,
+            recordedAt: new Date(),
+            price: ownPrice,
+            currency: productCurrency,
+          },
+        })
+      }
     }
 
     return product
@@ -103,33 +121,55 @@ export async function createCatalogProduct(input: CatalogProductInput) {
 }
 
 export async function setProductMarket(input: ProductMarketInput) {
-  const [country, product] = await Promise.all([
+  const [country, product, existing] = await Promise.all([
     prisma.country.findFirst({ where: { id: input.countryId, isActive: true } }),
     prisma.product.findUnique({ where: { id: input.productId } }),
+    prisma.productMarket.findUnique({ where: { productId_countryId: { productId: input.productId, countryId: input.countryId } } }),
   ])
   if (!country) throw new Error('Het geselecteerde land bestaat niet of is niet actief.')
   if (!product) throw new Error('Product niet gevonden.')
 
+  const currency = (input.currency || country.currency).toUpperCase()
+  if (currency !== country.currency.toUpperCase()) {
+    throw new Error(`De markt ${country.name} gebruikt ${country.currency}; stel eerst een wisselkoersbron in voordat een andere valuta wordt gebruikt.`)
+  }
   const ownPrice = decimal(input.ownPrice)
   const ownUrl = input.ownUrl ? validatePublicHttpUrl(input.ownUrl, 'De eigen product URL').toString() : null
-  return prisma.productMarket.upsert({
-    where: { productId_countryId: { productId: input.productId, countryId: input.countryId } },
-    update: {
-      ownPrice,
-      currency: input.currency || country.currency,
-      ownUrl,
-      stockStatus: input.stockStatus || null,
-      isActive: input.isActive ?? true,
-    },
-    create: {
-      productId: input.productId,
-      countryId: input.countryId,
-      ownPrice,
-      currency: input.currency || country.currency,
-      ownUrl,
-      stockStatus: input.stockStatus || null,
-      isActive: input.isActive ?? true,
-    },
+
+  return prisma.$transaction(async (tx) => {
+    const market = await tx.productMarket.upsert({
+      where: { productId_countryId: { productId: input.productId, countryId: input.countryId } },
+      update: {
+        ownPrice,
+        currency,
+        ownUrl,
+        stockStatus: input.stockStatus || null,
+        isActive: input.isActive ?? true,
+      },
+      create: {
+        productId: input.productId,
+        countryId: input.countryId,
+        ownPrice,
+        currency,
+        ownUrl,
+        stockStatus: input.stockStatus || null,
+        isActive: input.isActive ?? true,
+      },
+    })
+
+    const priceChanged = Boolean(ownPrice && (!existing?.ownPrice || !existing.ownPrice.eq(ownPrice) || existing.currency !== currency))
+    if (priceChanged) {
+      await tx.ownPriceHistory.create({
+        data: {
+          productId: input.productId,
+          countryId: input.countryId,
+          recordedAt: new Date(),
+          price: ownPrice!,
+          currency,
+        },
+      })
+    }
+    return market
   })
 }
 
@@ -138,6 +178,10 @@ export async function linkCompetitorOffer(input: CompetitorOfferInput) {
   const offerUrl = validatePublicHttpUrl(input.offerUrl, 'De product URL van de concurrent').toString()
   const country = await prisma.country.findFirst({ where: { id: input.countryId, isActive: true } })
   if (!country) throw new Error('Het geselecteerde land bestaat niet of is niet actief.')
+  const currency = (input.currency || country.currency).toUpperCase()
+  if (currency !== country.currency.toUpperCase()) {
+    throw new Error(`De concurrentbron voor ${country.name} moet in ${country.currency} worden opgeslagen zolang geen actuele wisselkoersbron is ingesteld.`)
+  }
 
   const result = await prisma.$transaction(async (tx) => {
     const product = await tx.product.findUnique({ where: { id: input.productId } })
@@ -162,7 +206,7 @@ export async function linkCompetitorOffer(input: CompetitorOfferInput) {
     const offer = await tx.competitorOffer.upsert({
       where: { competitorId_url: { competitorId: competitor.id, url: offerUrl } },
       update: {
-        currency: input.currency || country.currency,
+        currency,
         vatIncluded: input.vatIncluded ?? true,
         packagingUnit: input.packagingUnit || null,
         packagingQty: input.packagingQty ?? 1,
@@ -171,7 +215,7 @@ export async function linkCompetitorOffer(input: CompetitorOfferInput) {
       create: {
         competitorId: competitor.id,
         url: offerUrl,
-        currency: input.currency || country.currency,
+        currency,
         vatIncluded: input.vatIncluded ?? true,
         packagingUnit: input.packagingUnit || null,
         packagingQty: input.packagingQty ?? 1,
