@@ -11,20 +11,15 @@ const vatMap: Record<string, string> = {
   DK: '25',
 }
 
-const currencyToEur: Record<string, number> = {
-  EUR: 1,
-  GBP: 1.17,
-  DKK: 0.134,
-}
-
 function toDecimal(value: Prisma.Decimal | number | string) {
   return value instanceof Prisma.Decimal ? value : new Prisma.Decimal(value)
 }
 
 function convertCurrency(amount: Prisma.Decimal, fromCurrency: string, toCurrency: string) {
-  const fromRate = currencyToEur[fromCurrency] ?? 1
-  const toRate = currencyToEur[toCurrency] ?? 1
-  return amount.mul(fromRate).div(toRate)
+  const source = fromCurrency.trim().toUpperCase()
+  const target = toCurrency.trim().toUpperCase()
+  if (source === target) return amount
+  throw new Error(`Valuta ${source} kan niet veilig naar ${target} worden omgerekend zonder actuele wisselkoersbron.`)
 }
 
 export function getVatRate(countryCode: string) {
@@ -39,7 +34,7 @@ export function normalizePrice(
   packagingUnit: string | null | undefined,
   packagingQty: number | null | undefined,
   targetVatIncluded = true,
-  targetCurrency = 'EUR',
+  targetCurrency = currency,
 ) {
   const amount = toDecimal(price)
   const rate = toDecimal(vatRate)
@@ -53,7 +48,7 @@ export function normalizePrice(
     amount: normalized,
     packagingUnit: packagingUnit ?? 'stuks',
     packagingQty: quantity.toNumber(),
-    currency: targetCurrency,
+    currency: targetCurrency.trim().toUpperCase(),
     vatIncluded: targetVatIncluded,
   }
 }
