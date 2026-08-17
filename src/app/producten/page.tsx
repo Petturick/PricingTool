@@ -75,16 +75,23 @@ export default async function ProductenPage({ searchParams }: { searchParams: Pr
         <button className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white md:col-span-5">Filteren</button>
       </form>
 
+      {!filters.countryId && result.available ? (
+        <div className="rounded-2xl border border-[#dbe4f5] bg-[var(--brand-blue-soft)] px-4 py-3 text-[11px] leading-5 text-[#52658b]">Selecteer één land om eigen prijs, concurrentieprijzen, prijsverschil en marktpositie betrouwbaar te vergelijken. PrySight combineert prijzen uit verschillende markten niet langer tot één prijsindex.</div>
+      ) : null}
+
       <DataTable
         columns={[
-          { key: 'artikelnummer', header: 'Artikelnummer' }, { key: 'ean', header: 'EAN' }, { key: 'productnaam', header: 'Productnaam' }, { key: 'groep', header: 'Productgroep' }, { key: 'bron', header: 'Bron' }, { key: 'eigenPrijs', header: 'Eigen prijs' }, { key: 'laagste', header: 'Laagste concurrentieprijs' }, { key: 'gemiddeld', header: 'Gem. concurrent prijs' }, { key: 'verschilEuro', header: 'Verschil €' }, { key: 'verschilPct', header: 'Verschil %' }, { key: 'positie', header: 'Marktpositie' }, { key: 'aantalConcurrenten', header: 'Aantal concurrenten' }, { key: 'voorraad', header: 'Voorraad' }, { key: 'laatsteControle', header: 'Laatste controle' }, { key: 'trend', header: 'Prijstrend' },
+          { key: 'artikelnummer', header: 'Artikelnummer' }, { key: 'ean', header: 'EAN' }, { key: 'productnaam', header: 'Productnaam' }, { key: 'groep', header: 'Productgroep' }, { key: 'bron', header: 'Bron' }, { key: 'eigenPrijs', header: 'Eigen prijs' }, { key: 'laagste', header: 'Laagste concurrentieprijs' }, { key: 'gemiddeld', header: 'Gem. concurrent prijs' }, { key: 'verschilEuro', header: 'Verschil' }, { key: 'verschilPct', header: 'Verschil %' }, { key: 'positie', header: 'Marktpositie' }, { key: 'aantalConcurrenten', header: 'Aantal concurrenten' }, { key: 'voorraad', header: 'Voorraad' }, { key: 'laatsteControle', header: 'Laatste controle' }, { key: 'trend', header: 'Prijstrend' },
         ]}
-        rows={paged.map((item) => ({
-          artikelnummer: <Link href={`/producten/${item.product.id}`} className="font-medium text-sky-700">{item.product.articleNumber}</Link>,
-          ean: item.product.ean ?? '—', productnaam: item.product.name, groep: item.product.productGroup.name,
-          bron: sourceByProduct.get(item.product.id)?.join(', ') ?? 'Handmatig / import',
-          eigenPrijs: formatCurrency(item.ownPrice, item.product.currency), laagste: formatCurrency(item.lowestPrice), gemiddeld: formatCurrency(item.averagePrice), verschilEuro: formatCurrency(item.difference.diff), verschilPct: item.difference.pctDiff ? `${formatNumber(Number(item.difference.pctDiff), 1)}%` : '—', positie: item.marketPosition, aantalConcurrenten: formatNumber(item.offerCount), voorraad: item.product.stockStatus ?? '—', laatsteControle: formatDate(item.lastCheckedAt), trend: item.trendDelta === null ? '—' : `${item.trendDelta >= 0 ? '+' : ''}${formatCurrency(item.trendDelta)}`,
-        }))}
+        rows={paged.map((item) => {
+          const currency = item.currency ?? item.product.currency
+          return {
+            artikelnummer: <Link href={`/producten/${item.product.id}`} className="font-medium text-sky-700">{item.product.articleNumber}</Link>,
+            ean: item.product.ean ?? '—', productnaam: item.product.name, groep: item.product.productGroup.name,
+            bron: sourceByProduct.get(item.product.id)?.join(', ') ?? 'Handmatig / import',
+            eigenPrijs: formatCurrency(item.ownPrice, currency), laagste: formatCurrency(item.lowestPrice, currency), gemiddeld: formatCurrency(item.averagePrice, currency), verschilEuro: formatCurrency(item.difference.diff, currency), verschilPct: item.difference.pctDiff ? `${formatNumber(Number(item.difference.pctDiff), 1)}%` : '—', positie: item.marketPosition, aantalConcurrenten: formatNumber(item.offerCount), voorraad: item.product.stockStatus ?? '—', laatsteControle: formatDate(item.lastCheckedAt), trend: item.trendDelta === null ? '—' : `${item.trendDelta >= 0 ? '+' : ''}${formatCurrency(item.trendDelta, currency)}`,
+          }
+        })}
       />
 
       <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
