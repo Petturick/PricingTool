@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createHash } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { FeedSourceType } from '@/generated/prisma/client'
+import { authorizeApi, WRITE_ROLES } from '@/lib/authz'
 import { isDatabaseConnectivityError } from '@/lib/database-health'
 import { withDatabaseRoute } from '@/lib/database-route'
 import { syncFeedSource } from '@/lib/feed-ingestion'
@@ -14,6 +15,9 @@ function sourceKey(url: string) {
 }
 
 export async function POST(request: Request) {
+  const access = await authorizeApi(WRITE_ROLES)
+  if (access.response) return access.response
+
   const body = await request.json().catch(() => null) as { url?: string; name?: string; countryCode?: string } | null
   if (!body?.url) return NextResponse.json({ error: 'Vul een productfeed URL in.' }, { status: 400 })
 
