@@ -1,9 +1,8 @@
-import { UserRole } from '@/generated/prisma/client'
-
-export type AppRole = UserRole | 'SUPER_ADMIN'
+export type DatabaseRole = 'ADMIN' | 'ANALYST' | 'READONLY'
+export type AppRole = DatabaseRole | 'SUPER_ADMIN'
 
 export function isAdminRole(role: AppRole | null | undefined) {
-  return role === 'SUPER_ADMIN' || role === UserRole.ADMIN
+  return role === 'SUPER_ADMIN' || role === 'ADMIN'
 }
 
 export function isSuperAdminRole(role: AppRole | null | undefined) {
@@ -12,7 +11,7 @@ export function isSuperAdminRole(role: AppRole | null | undefined) {
 
 export function roleLabel(role: AppRole | null | undefined) {
   if (role === 'SUPER_ADMIN') return 'Super admin'
-  if (role === UserRole.ADMIN) return 'Admin'
-  if (role === UserRole.ANALYST) return 'Analist'
+  if (role === 'ADMIN') return 'Admin'
+  if (role === 'ANALYST') return 'Analist'
   return 'Alleen lezen'
 }
