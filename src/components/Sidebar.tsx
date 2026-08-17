@@ -2,9 +2,17 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { logoutAction } from '@/app/actions/authActions'
 import { cn } from '@/lib/format'
+import { roleLabel, type AppRole } from '@/lib/roles'
 
 type IconName = 'dashboard' | 'products' | 'competitors' | 'matches' | 'alerts' | 'strategy' | 'reports' | 'feeds' | 'import' | 'integrations' | 'settings'
+
+type SidebarUser = {
+  name?: string | null
+  email?: string | null
+  role?: AppRole | null
+}
 
 const groups: Array<{ label: string; items: Array<{ href: string; label: string; icon: IconName }> }> = [
   { label: 'Prijsmonitoring', items: [
@@ -41,14 +49,16 @@ function NavIcon({ name }: { name: IconName }) {
   return <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L14.5 3h-5l-.3 3a8 8 0 0 0-1.7 1L5 6 3 9.5 5.1 11a7 7 0 0 0 0 2L3 14.5 5 18l2.5-1a8 8 0 0 0 1.7 1l.3 3h5l.3-3a8 8 0 0 0 1.7-1l2.5 1 2-3.5-2.1-1.5c.1-.3.1-.7.1-1Z" /></svg>
 }
 
-export function Sidebar() {
+export function Sidebar({ user }: { user?: SidebarUser | null }) {
   const pathname = usePathname()
+  const initials = user?.name?.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'U'
+
   return (
     <aside className="flex h-full w-full max-w-[272px] flex-col border-r border-[var(--border)] bg-white text-[#202536]">
       <div className="border-b border-[var(--border)] px-5 py-5">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]"><svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 17 9 12l3 3 7-8" /><path d="M15 7h4v4" /></svg></div>
-          <div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a94a6]">Engels Group</p><h1 className="mt-0.5 text-[17px] font-semibold tracking-[-0.01em] text-[#171b28]">Pricing intelligence</h1></div>
+          <div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a94a6]">Engels Group</p><h1 className="mt-0.5 text-[17px] font-semibold tracking-[-0.01em] text-[#171b28]">PrySight</h1></div>
         </div>
       </div>
       <nav className="flex-1 overflow-y-auto px-3 py-5">
@@ -64,7 +74,22 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
-      <div className="border-t border-[var(--border)] p-4"><div className="rounded-2xl border border-[var(--border)] bg-[#fbfcfe] p-3.5"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[var(--green)]" /><p className="text-xs font-semibold text-[#303647]">Pricing workspace</p></div><p className="mt-1.5 text-[11px] leading-5 text-[#7b8497]">Monitor, vergelijk, adviseer en automatiseer vanuit één omgeving.</p></div></div>
+      <div className="border-t border-[var(--border)] p-4">
+        {user ? (
+          <div className="rounded-2xl border border-[var(--border)] bg-[#fbfcfe] p-3.5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#eef1f6] text-xs font-bold text-[#4b5565]">{initials}</div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold text-[#303647]">{user.name || user.email}</p>
+                <p className="mt-0.5 truncate text-[11px] text-[#7b8497]">{roleLabel(user.role)}</p>
+              </div>
+            </div>
+            <form action={logoutAction} className="mt-3">
+              <button type="submit" className="w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-xs font-semibold text-[#596174] transition hover:bg-[#f5f7fa] hover:text-[#202536]">Uitloggen</button>
+            </form>
+          </div>
+        ) : null}
+      </div>
     </aside>
   )
 }
