@@ -2,11 +2,14 @@ import { MatchStatus, Prisma } from '@/generated/prisma/client'
 import { evaluateMonitoringAlerts } from '@/lib/alert-engine'
 import { normalizePrice } from '@/lib/price-normalization'
 import { prisma } from '@/lib/prisma'
+import { fetchPublicUrl, readResponseTextLimited, validatePublicHttpUrl } from '@/lib/safe-remote-url'
 
 type ExtractionMethod = 'JSON_LD' | 'META' | 'HTML_REGEX'
 type ExtractedOffer = { price: number | null; currency: string | null; stockStatus: string | null; productTitle: string | null; sku: string | null; ean: string | null; packagingQty: number | null; method: ExtractionMethod | null }
 type JsonRecord = Record<string, unknown>
 const robotsCache = new Map<string, { checkedAt: number; disallow: string[] }>()
+const MAX_PRODUCT_PAGE_BYTES = 5 * 1024 * 1024
+const MONITOR_USER_AGENT = 'PrySightPricingMonitor/1.0 (+pricing intelligence)'
 
 function parseLocalizedPrice(value: unknown) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null
@@ -69,34 +72,58 @@ function extractHtmlFallback(html: string): ExtractedOffer | null {
 export function extractOfferSnapshot(html: string): ExtractedOffer { return extractJsonLd(html) ?? extractMeta(html) ?? extractHtmlFallback(html) ?? { price: null, currency: null, stockStatus: null, productTitle: null, sku: null, ean: null, packagingQty: null, method: null } }
 
 async function robotsRules(targetUrl: string) {
-  const url = new URL(targetUrl); const origin = url.origin; const cached = robotsCache.get(origin); if (cached && Date.now() - cached.checkedAt < 60 * 60 * 1000) return cached.disallow
+  const url = validatePublicHttpUrl(targetUrl, 'De concurrent URL')
+  const origin = url.origin
+  const cached = robotsCache.get(origin)
+  if (cached && Date.now() - cached.checkedAt < 60 * 60 * 1000) return cached.disallow
   try {
-    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 4000)
-    const response = await fetch(`${origin}/robots.txt`, { signal: controller.signal, headers: { 'User-Agent': 'EngelsPricingMonitor/1.0' }, cache: 'no-store' }); clearTimeout(timer); if (!response.ok) return []
-    const lines = (await response.text()).split(/\r?\n/).map((line) => line.split('#')[0].trim()).filter(Boolean)
-    const disallow: string[] = []; let applies = false
-    for (const line of lines) { const [rawKey, ...rawValue] = line.split(':'); const key = rawKey?.trim().toLowerCase(); const value = rawValue.join(':').trim(); if (key === 'user-agent') { const agent = value.toLowerCase(); applies = agent === '*' || agent.includes('engelspricingmonitor') } else if (key === 'disallow' && applies && value) disallow.push(value) }
-    robotsCache.set(origin, { checkedAt: Date.now(), disallow }); return disallow
-  } catch { return [] }
+    const response = await fetchPublicUrl(`${origin}/robots.txt`, { signal: AbortSignal.timeout(4000), headers: { 'User-Agent': MONITOR_USER_AGENT }, cache: 'no-store' })
+    if (!response.ok) return []
+    const content = await readResponseTextLimited(response, 512 * 1024, 'robots.txt')
+    const lines = content.split(/\r?\n/).map((line) => line.split('#')[0].trim()).filter(Boolean)
+    const disallow: string[] = []
+    let applies = false
+    for (const line of lines) {
+      const [rawKey, ...rawValue] = line.split(':')
+      const key = rawKey?.trim().toLowerCase()
+      const value = rawValue.join(':').trim()
+      if (key === 'user-agent') {
+        const agent = value.toLowerCase()
+        applies = agent === '*' || agent.includes('prysightpricingmonitor')
+      } else if (key === 'disallow' && applies && value) {
+        disallow.push(value)
+      }
+    }
+    robotsCache.set(origin, { checkedAt: Date.now(), disallow })
+    return disallow
+  } catch {
+    return []
+  }
 }
-async function isAllowedByRobots(targetUrl: string) { const url = new URL(targetUrl); const disallow = await robotsRules(targetUrl); return !disallow.some((rule) => rule === '/' || url.pathname.startsWith(rule)) }
+async function isAllowedByRobots(targetUrl: string) { const url = validatePublicHttpUrl(targetUrl, 'De concurrent URL'); const disallow = await robotsRules(targetUrl); return !disallow.some((rule) => rule === '/' || url.pathname.startsWith(rule)) }
 async function fetchOfferPage(targetUrl: string) {
+  validatePublicHttpUrl(targetUrl, 'De concurrent URL')
   if (!(await isAllowedByRobots(targetUrl))) throw new Error('Controle overgeslagen omdat robots.txt deze URL uitsluit.')
-  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 15_000)
-  try {
-    const response = await fetch(targetUrl, { signal: controller.signal, redirect: 'follow', cache: 'no-store', headers: { 'User-Agent': 'EngelsPricingMonitor/1.0 (+pricing intelligence)', Accept: 'text/html,application/xhtml+xml', 'Accept-Language': 'nl-NL,nl;q=0.9,en;q=0.7' } })
-    if (!response.ok) throw new Error(`Bron gaf HTTP ${response.status}.`)
-    const contentType = response.headers.get('content-type') ?? ''
-    if (!contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')) throw new Error(`Onverwacht contenttype: ${contentType || 'onbekend'}.`)
-    return { html: await response.text(), statusCode: response.status }
-  } finally { clearTimeout(timer) }
+  const response = await fetchPublicUrl(targetUrl, { signal: AbortSignal.timeout(15_000), cache: 'no-store', headers: { 'User-Agent': MONITOR_USER_AGENT, Accept: 'text/html,application/xhtml+xml', 'Accept-Language': 'nl-NL,nl;q=0.9,en;q=0.7' } })
+  if (!response.ok) throw new Error(`Bron gaf HTTP ${response.status}.`)
+  const contentType = response.headers.get('content-type') ?? ''
+  if (!contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')) throw new Error(`Onverwacht contenttype: ${contentType || 'onbekend'}.`)
+  return { html: await readResponseTextLimited(response, MAX_PRODUCT_PAGE_BYTES, 'Productpagina'), statusCode: response.status }
 }
 
 export async function runPriceCheck(competitorOfferId: string) {
-  const offer = await prisma.competitorOffer.findUnique({ where: { id: competitorOfferId }, include: { competitor: { include: { country: true } }, productMatch: { include: { product: true } } } })
+  const offer = await prisma.competitorOffer.findUnique({
+    where: { id: competitorOfferId },
+    include: {
+      competitor: { include: { country: true } },
+      productMatch: { include: { product: { include: { markets: true } } } },
+    },
+  })
   if (!offer) throw new Error('Concurrentieaanbieding niet gevonden.')
   if (!offer.isActive || !offer.competitor.isActive) throw new Error('Aanbieding of concurrent is niet actief.')
-  const checkedAt = new Date(); const previousPrice = offer.normalizedPrice; const previousStockStatus = offer.stockStatus
+  const checkedAt = new Date()
+  const previousPrice = offer.normalizedPrice
+  const previousStockStatus = offer.stockStatus
   try {
     const { html, statusCode } = await fetchOfferPage(offer.url)
     const extracted = extractOfferSnapshot(html)
@@ -110,11 +137,17 @@ export async function runPriceCheck(competitorOfferId: string) {
       prisma.competitorOffer.update({ where: { id: offer.id }, data: { rawPrice: new Prisma.Decimal(extracted.price), normalizedPrice: normalized, currency, stockStatus: extracted.stockStatus ?? offer.stockStatus, lastCheckedAt: checkedAt } }),
       prisma.competitor.update({ where: { id: offer.competitorId }, data: { lastCheckedAt: checkedAt } }),
     ])
-    await evaluateMonitoringAlerts({ competitorOfferId: offer.id, competitorId: offer.competitorId, countryId: offer.competitor.countryId, productId: offer.productMatch?.productId ?? null, productGroupId: offer.productMatch?.product.productGroupId ?? null, competitorName: offer.competitor.name, productName: offer.productMatch?.product.name ?? extracted.productTitle ?? 'Ongekoppeld product', previousPrice, currentPrice: normalized, ownPrice: offer.productMatch?.product.ownPrice, previousStockStatus, currentStockStatus: extracted.stockStatus ?? offer.stockStatus })
+    const productMarket = offer.productMatch?.product.markets.find((market) => market.countryId === offer.competitor.countryId && market.isActive)
+    const ownPrice = productMarket?.ownPrice ?? offer.productMatch?.product.ownPrice ?? null
+    await evaluateMonitoringAlerts({ competitorOfferId: offer.id, competitorId: offer.competitorId, countryId: offer.competitor.countryId, productId: offer.productMatch?.productId ?? null, productGroupId: offer.productMatch?.product.productGroupId ?? null, competitorName: offer.competitor.name, productName: offer.productMatch?.product.name ?? extracted.productTitle ?? 'Ongekoppeld product', previousPrice, currentPrice: normalized, ownPrice, previousStockStatus, currentStockStatus: extracted.stockStatus ?? offer.stockStatus })
     return { competitorOfferId: offer.id, success: true, checkedAt, price: extracted.price, normalizedPrice: normalized.toNumber(), currency, method: extracted.method, stockStatus: extracted.stockStatus ?? offer.stockStatus }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Onbekende fout tijdens prijscontrole.'
-    await prisma.$transaction([prisma.priceCheck.create({ data: { competitorOfferId: offer.id, checkedAt, foundPrice: null, currency: offer.currency, stockStatus: offer.stockStatus, productTitle: offer.productMatch?.product.name ?? null, packagingUnit: offer.packagingUnit, checkMethod: 'SCRAPER', statusCode: null, errorMessage: message, sourceUrl: offer.url, isSuccess: false } }), prisma.competitor.update({ where: { id: offer.competitorId }, data: { lastCheckedAt: checkedAt } })])
+    await prisma.$transaction([
+      prisma.priceCheck.create({ data: { competitorOfferId: offer.id, checkedAt, foundPrice: null, currency: offer.currency, stockStatus: offer.stockStatus, productTitle: offer.productMatch?.product.name ?? null, packagingUnit: offer.packagingUnit, checkMethod: 'SCRAPER', statusCode: null, errorMessage: message, sourceUrl: offer.url, isSuccess: false } }),
+      prisma.competitorOffer.update({ where: { id: offer.id }, data: { lastCheckedAt: checkedAt } }),
+      prisma.competitor.update({ where: { id: offer.competitorId }, data: { lastCheckedAt: checkedAt } }),
+    ])
     return { competitorOfferId: offer.id, success: false, checkedAt, error: message }
   }
 }
