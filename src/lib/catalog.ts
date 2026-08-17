@@ -1,6 +1,7 @@
 import { MatchStatus, Prisma } from '@/generated/prisma/client'
 import { prisma } from '@/lib/prisma'
 import { runPriceCheck } from '@/lib/price-monitoring'
+import { validatePublicHttpUrl } from '@/lib/safe-remote-url'
 
 export type CatalogProductInput = {
   articleNumber: string
@@ -40,6 +41,7 @@ export type CompetitorOfferInput = {
   vatIncluded?: boolean
   packagingUnit?: string | null
   packagingQty?: number | null
+  approvedBy?: string | null
 }
 
 function decimal(value: number | null | undefined) {
@@ -109,12 +111,13 @@ export async function setProductMarket(input: ProductMarketInput) {
   if (!product) throw new Error('Product niet gevonden.')
 
   const ownPrice = decimal(input.ownPrice)
+  const ownUrl = input.ownUrl ? validatePublicHttpUrl(input.ownUrl, 'De eigen product URL').toString() : null
   return prisma.productMarket.upsert({
     where: { productId_countryId: { productId: input.productId, countryId: input.countryId } },
     update: {
       ownPrice,
       currency: input.currency || country.currency,
-      ownUrl: input.ownUrl || null,
+      ownUrl,
       stockStatus: input.stockStatus || null,
       isActive: input.isActive ?? true,
     },
@@ -123,7 +126,7 @@ export async function setProductMarket(input: ProductMarketInput) {
       countryId: input.countryId,
       ownPrice,
       currency: input.currency || country.currency,
-      ownUrl: input.ownUrl || null,
+      ownUrl,
       stockStatus: input.stockStatus || null,
       isActive: input.isActive ?? true,
     },
@@ -131,6 +134,8 @@ export async function setProductMarket(input: ProductMarketInput) {
 }
 
 export async function linkCompetitorOffer(input: CompetitorOfferInput) {
+  const competitorWebsite = validatePublicHttpUrl(input.competitorWebsite, 'De website van de concurrent').toString()
+  const offerUrl = validatePublicHttpUrl(input.offerUrl, 'De product URL van de concurrent').toString()
   const country = await prisma.country.findFirst({ where: { id: input.countryId, isActive: true } })
   if (!country) throw new Error('Het geselecteerde land bestaat niet of is niet actief.')
 
@@ -141,13 +146,13 @@ export async function linkCompetitorOffer(input: CompetitorOfferInput) {
     const competitor = await tx.competitor.upsert({
       where: { name_countryId: { name: input.competitorName, countryId: input.countryId } },
       update: {
-        website: input.competitorWebsite,
+        website: competitorWebsite,
         checkFrequencyHours: input.checkFrequencyHours ?? 24,
         isActive: true,
       },
       create: {
         name: input.competitorName,
-        website: input.competitorWebsite,
+        website: competitorWebsite,
         countryId: input.countryId,
         checkFrequencyHours: input.checkFrequencyHours ?? 24,
         isActive: true,
@@ -155,7 +160,7 @@ export async function linkCompetitorOffer(input: CompetitorOfferInput) {
     })
 
     const offer = await tx.competitorOffer.upsert({
-      where: { competitorId_url: { competitorId: competitor.id, url: input.offerUrl } },
+      where: { competitorId_url: { competitorId: competitor.id, url: offerUrl } },
       update: {
         currency: input.currency || country.currency,
         vatIncluded: input.vatIncluded ?? true,
@@ -165,7 +170,7 @@ export async function linkCompetitorOffer(input: CompetitorOfferInput) {
       },
       create: {
         competitorId: competitor.id,
-        url: input.offerUrl,
+        url: offerUrl,
         currency: input.currency || country.currency,
         vatIncluded: input.vatIncluded ?? true,
         packagingUnit: input.packagingUnit || null,
@@ -186,6 +191,7 @@ export async function linkCompetitorOffer(input: CompetitorOfferInput) {
         confidenceScore: 100,
         matchStatus: MatchStatus.CERTAIN,
         matchEvidence: { source: 'manual', reason: 'Handmatig aan product gekoppeld' },
+        approvedBy: input.approvedBy ?? null,
         approvedAt: new Date(),
       },
       create: {
@@ -194,6 +200,7 @@ export async function linkCompetitorOffer(input: CompetitorOfferInput) {
         confidenceScore: 100,
         matchStatus: MatchStatus.CERTAIN,
         matchEvidence: { source: 'manual', reason: 'Handmatig aan product gekoppeld' },
+        approvedBy: input.approvedBy ?? null,
         approvedAt: new Date(),
       },
     })
