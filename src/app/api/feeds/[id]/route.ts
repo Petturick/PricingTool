@@ -1,10 +1,14 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
+import { authorizeApi, WRITE_ROLES } from '@/lib/authz'
 import { withDatabaseRoute } from '@/lib/database-route'
 import { prisma } from '@/lib/prisma'
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  const access = await authorizeApi(WRITE_ROLES)
+  if (access.response) return access.response
+
   const { id } = await context.params
   const body = await request.json().catch(() => null) as { name?: string; isActive?: boolean; syncFrequencyHours?: number } | null
   if (!body) return NextResponse.json({ error: 'Ongeldige aanvraag.' }, { status: 400 })
@@ -22,6 +26,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 }
 
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const access = await authorizeApi(WRITE_ROLES)
+  if (access.response) return access.response
+
   const { id } = await context.params
   return withDatabaseRoute(async () => {
     await prisma.feedSource.delete({ where: { id } })

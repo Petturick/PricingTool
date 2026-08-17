@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { createCatalogProduct, linkCompetitorOffer, setProductMarket } from '@/lib/catalog'
+import { requireUser, WRITE_ROLES } from '@/lib/authz'
 import { runPriceCheck } from '@/lib/price-monitoring'
 
 export type CatalogActionState = {
@@ -60,12 +61,15 @@ function failure(error: unknown): CatalogActionState {
   if (value?.code === 'P2002') {
     return { ok: false, message: 'Deze invoer bestaat al. Controleer artikelnummer, concurrent en URL.' }
   }
+  if (value?.message === 'UNAUTHORIZED') return { ok: false, message: 'Uw sessie is verlopen. Log opnieuw in.' }
+  if (value?.message === 'FORBIDDEN') return { ok: false, message: 'U heeft geen rechten voor deze wijziging.' }
   return { ok: false, message: error instanceof Error ? error.message : 'Opslaan mislukt.' }
 }
 
 export async function createProductAction(_previousState: CatalogActionState, formData: FormData): Promise<CatalogActionState> {
   let productId: string
   try {
+    await requireUser(WRITE_ROLES)
     const parsed = productFormSchema.parse({
       articleNumber: formData.get('articleNumber'),
       ean: formData.get('ean'),
@@ -90,6 +94,7 @@ export async function createProductAction(_previousState: CatalogActionState, fo
 
 export async function setProductMarketAction(productId: string, _previousState: CatalogActionState, formData: FormData): Promise<CatalogActionState> {
   try {
+    await requireUser(WRITE_ROLES)
     const parsed = marketFormSchema.parse({
       countryId: formData.get('countryId'),
       ownPrice: formData.get('ownPrice'),
@@ -108,6 +113,7 @@ export async function setProductMarketAction(productId: string, _previousState: 
 
 export async function addCompetitorOfferAction(productId: string, _previousState: CatalogActionState, formData: FormData): Promise<CatalogActionState> {
   try {
+    const currentUser = await requireUser(WRITE_ROLES)
     const parsed = competitorFormSchema.parse({
       countryId: formData.get('countryId'),
       competitorName: formData.get('competitorName'),
@@ -118,7 +124,7 @@ export async function addCompetitorOfferAction(productId: string, _previousState
       packagingUnit: formData.get('packagingUnit'),
       packagingQty: formData.get('packagingQty'),
     })
-    const linked = await linkCompetitorOffer({ productId, ...parsed })
+    const linked = await linkCompetitorOffer({ productId, ...parsed, approvedBy: currentUser.id })
     revalidatePath('/concurrenten')
     revalidatePath(`/producten/${productId}`)
     return linked.initialCheck.success
@@ -131,6 +137,7 @@ export async function addCompetitorOfferAction(productId: string, _previousState
 
 export async function runPriceCheckAction(offerId: string, productId: string, _formData: FormData) {
   void _formData
+  await requireUser(WRITE_ROLES)
   await runPriceCheck(offerId)
   revalidatePath('/dashboard')
   revalidatePath('/concurrenten')

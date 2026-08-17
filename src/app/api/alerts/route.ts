@@ -1,10 +1,14 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
+import { authorizeApi, VIEW_ROLES } from '@/lib/authz'
 import { withDatabaseRoute } from '@/lib/database-route'
 import { prisma } from '@/lib/prisma'
 import { alertPatchSchema } from '@/lib/validators'
 
 export async function GET(request: Request) {
+  const access = await authorizeApi(VIEW_ROLES)
+  if (access.response) return access.response
+
   const { searchParams } = new URL(request.url)
   const severity = searchParams.get('severity') ?? undefined
   const type = searchParams.get('type') ?? undefined
@@ -26,6 +30,9 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const access = await authorizeApi(VIEW_ROLES)
+  if (access.response) return access.response
+
   const body = await request.json()
   const parsed = alertPatchSchema.safeParse(body)
   if (!parsed.success) {

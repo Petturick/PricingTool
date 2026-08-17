@@ -1,11 +1,15 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
+import { authorizeApi, VIEW_ROLES, WRITE_ROLES } from '@/lib/authz'
 import { createCatalogProduct } from '@/lib/catalog'
 import { withDatabaseRoute } from '@/lib/database-route'
 import { prisma } from '@/lib/prisma'
 import { productSchema } from '@/lib/validators'
 
 export async function GET(request: Request) {
+  const access = await authorizeApi(VIEW_ROLES)
+  if (access.response) return access.response
+
   return withDatabaseRoute(async () => {
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q') ?? undefined
@@ -27,6 +31,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const access = await authorizeApi(WRITE_ROLES)
+  if (access.response) return access.response
+
   const body = await request.json()
   const parsed = productSchema.safeParse(body)
   if (!parsed.success) {

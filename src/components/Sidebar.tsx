@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { logoutAction } from '@/app/actions/authActions'
 import { cn } from '@/lib/format'
 import { PrySightLogo } from '@/components/PrySightLogo'
 
@@ -60,7 +61,15 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
-      <div className="border-t border-[var(--border)] p-4"><div className="rounded-2xl border border-[var(--border)] bg-[#fbfcfe] p-3.5"><div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[var(--brand-mint)]" /><p className="text-xs font-semibold text-[#303647]">Engels Group workspace</p></div><p className="mt-1.5 text-[11px] leading-5 text-[#7b8497]">Monitor, vergelijk, adviseer en automatiseer in PrySight.</p></div></div>
+      <div className="border-t border-[var(--border)] p-4">
+        <div className="rounded-2xl border border-[var(--border)] bg-[#fbfcfe] p-3.5">
+          <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[var(--brand-mint)]" /><p className="text-xs font-semibold text-[#303647]">Engels Group workspace</p></div>
+          <p className="mt-1.5 text-[11px] leading-5 text-[#7b8497]">Monitor, vergelijk, adviseer en automatiseer in PrySight.</p>
+          <form action={logoutAction} className="mt-3">
+            <button type="submit" className="focus-ring w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-[11px] font-semibold text-[#596174] transition-colors hover:border-[#c9d3e2] hover:text-[var(--brand-navy)]">Log out</button>
+          </form>
+        </div>
+      </div>
     </aside>
   )
 }

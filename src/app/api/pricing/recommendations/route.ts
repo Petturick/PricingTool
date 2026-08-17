@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
+import { authorizeApi, VIEW_ROLES } from '@/lib/authz'
 import { withDatabaseRoute } from '@/lib/database-route'
 import { getPricingRecommendations, type PricingStrategy } from '@/lib/pricing-engine'
 
@@ -8,6 +9,9 @@ const strategies = new Set<PricingStrategy>(['LOWEST_MATCH', 'LOWEST_MINUS', 'SE
 function numberParam(value: string | null, fallback: number) { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : fallback }
 
 export async function GET(request: Request) {
+  const access = await authorizeApi(VIEW_ROLES)
+  if (access.response) return access.response
+
   const { searchParams } = new URL(request.url)
   const requestedStrategy = searchParams.get('strategy') as PricingStrategy | null
   const strategy = requestedStrategy && strategies.has(requestedStrategy) ? requestedStrategy : 'MARKET_MEDIAN'
