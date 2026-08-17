@@ -109,7 +109,14 @@ async function main() {
         },
       },
     })
-    await prisma.ownPriceHistory.create({ data: { productId: product.id, price: new Prisma.Decimal(fixture.price), currency: 'EUR' } })
+    await prisma.ownPriceHistory.create({
+      data: {
+        productId: product.id,
+        recordedAt: new Date(),
+        price: new Prisma.Decimal(fixture.price),
+        currency: 'EUR',
+      },
+    })
   }
 
   await prisma.auditLog.create({
