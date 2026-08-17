@@ -54,7 +54,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   return withDatabaseRoute(async () => {
     try {
-      const result = await linkCompetitorOffer({ productId: id, ...parsed.data })
+      const result = await linkCompetitorOffer({ productId: id, ...parsed.data, approvedBy: access.user.id })
       return NextResponse.json(result, { status: 201 })
     } catch (error) {
       if (isDatabaseConnectivityError(error)) throw error
