@@ -7,12 +7,6 @@ on:
     types:
       - completed
   workflow_dispatch:
-    inputs:
-      strict:
-        description: Fail when production database health is unavailable
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -30,18 +24,22 @@ jobs:
     timeout-minutes: 5
     env:
       BASE_URL: ${{ vars.PRICING_TOOL_BASE_URL || 'https://pricingtool.bolt.host' }}
-      STRICT_HEALTH: ${{ github.event_name == 'workflow_dispatch' && inputs.strict || false }}
+      EXPECTED_DB_PROFILE: supavisor_session_tls_v3
+      EXPECTED_DB_PORT: '5432'
     steps:
       - name: Verify application and database health
         shell: bash
         run: |
           for attempt in 1 2 3 4 5 6 7 8; do
             response="$(curl --silent --show-error --max-time 12 "${BASE_URL%/}/api/health" || true)"
-            if HEALTH_RESPONSE="$response" node -e '
+            if HEALTH_RESPONSE="$response" EXPECTED_DB_PROFILE="$EXPECTED_DB_PROFILE" EXPECTED_DB_PORT="$EXPECTED_DB_PORT" node -e '
               const health = JSON.parse(process.env.HEALTH_RESPONSE || "{}")
-              if (health.status !== "ok" || health.database?.reachable !== true) process.exit(1)
+              if (health.status !== "ok") process.exit(1)
+              if (health.database?.reachable !== true) process.exit(1)
+              if (health.database?.profile !== process.env.EXPECTED_DB_PROFILE) process.exit(1)
+              if (String(health.database?.port ?? "") !== process.env.EXPECTED_DB_PORT) process.exit(1)
             '; then
-              echo "Production application and database are healthy."
+              echo "Production application and database are healthy on the expected Supavisor session profile."
               exit 0
             fi
 
@@ -71,8 +69,5 @@ jobs:
             fi
           done
 
-          echo "::warning::Production database health remained unavailable after retries."
-          if [ "$STRICT_HEALTH" = "true" ]; then
-            exit 1
-          fi
-          exit 0
+          echo "::error::Production database health remained unavailable or is running an unexpected database profile after retries."
+          exit 1
