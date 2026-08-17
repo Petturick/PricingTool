@@ -74,10 +74,12 @@ export async function POST(request: Request) {
   if (!access.ok) return json({ error: access.message }, { status: access.status })
 
   const body = await request.json().catch(() => null) as { organizationId?: string; countryCode?: string; products?: CanonicalFeedProduct[]; sourceName?: string } | null
-  if (!body?.products || !Array.isArray(body.products)) return json({ error: 'Products array ontbreekt.' }, { status: 400 })
+  if (!body || !Array.isArray(body.products)) return json({ error: 'Products array ontbreekt.' }, { status: 400 })
+
+  const products = body.products
   if (body.organizationId !== ENGELS_ORGANIZATION_ID) return json({ error: 'Alleen de actieve Engels Group organisatie kan naar PrySight synchroniseren.' }, { status: 403 })
-  if (body.products.length === 0) return json({ error: 'De synchronisatiebatch bevat geen producten.' }, { status: 400 })
-  if (body.products.length > 5000) return json({ error: 'Maximaal 5000 producten per synchronisatiebatch.' }, { status: 413 })
+  if (products.length === 0) return json({ error: 'De synchronisatiebatch bevat geen producten.' }, { status: 400 })
+  if (products.length > 5000) return json({ error: 'Maximaal 5000 producten per synchronisatiebatch.' }, { status: 413 })
 
   const countryCode = body.countryCode?.trim().toUpperCase() ?? ''
   if (!COUNTRY_CODE.test(countryCode)) {
@@ -88,7 +90,7 @@ export async function POST(request: Request) {
     const market = await prisma.country.findFirst({ where: { code: countryCode, isActive: true }, select: { code: true, name: true, currency: true } })
     if (!market) return json({ error: `Markt ${countryCode} bestaat niet of is niet actief in PrySight.` }, { status: 400 })
 
-    const invalidCurrency = body.products.find((product) => {
+    const invalidCurrency = products.find((product) => {
       const currency = typeof product.currency === 'string' ? product.currency.trim().toUpperCase() : market.currency.toUpperCase()
       return product.ownPrice !== null && product.ownPrice !== undefined && product.ownPrice !== '' && currency !== market.currency.toUpperCase()
     })
@@ -101,7 +103,7 @@ export async function POST(request: Request) {
       sourceName: body.sourceName?.trim() || `Syntrx PIM · Engels Group · ${countryCode}`,
       sourceType: FeedSourceType.SYNTRX,
       countryCode,
-      products: body.products,
+      products,
       config: {
         projectId: SYNTRX_PROJECT_ID,
         organizationId: ENGELS_ORGANIZATION_ID,
