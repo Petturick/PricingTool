@@ -4,11 +4,14 @@ import { NextResponse } from 'next/server'
 import { FeedSourceType } from '@/generated/prisma/client'
 import { withDatabaseRoute } from '@/lib/database-route'
 import { ingestCanonicalProducts, type CanonicalFeedProduct } from '@/lib/feed-ingestion'
+import { prisma } from '@/lib/prisma'
 
-const SYNTRX_URL = process.env.SYNTRX_SUPABASE_URL ?? 'https://cieqifmizthutfvfgfny.supabase.co'
+const SYNTRX_PROJECT_ID = 'cieqifmizthutfvfgfny'
+const SYNTRX_URL = process.env.SYNTRX_SUPABASE_URL ?? `https://${SYNTRX_PROJECT_ID}.supabase.co`
 const SYNTRX_PUBLISHABLE_KEY = process.env.SYNTRX_SUPABASE_PUBLISHABLE_KEY ?? 'sb_publishable_TMhAYLP5vYiChEbZyhBcvw__tGpowal'
 const ENGELS_ORGANIZATION_ID = process.env.SYNTRX_ENGELS_ORGANIZATION_ID ?? '4cd85d1b-f834-4e68-b26d-1eae649b4c1f'
 const ALLOWED_ROLES = new Set(['admin', 'manager', 'import_manager'])
+const COUNTRY_CODE = /^[A-Z]{2}$/
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -70,21 +73,44 @@ export async function POST(request: Request) {
   const access = await validateSyntrxSession(request)
   if (!access.ok) return json({ error: access.message }, { status: access.status })
 
-  const body = await request.json().catch(() => null) as { organizationId?: string; products?: CanonicalFeedProduct[]; sourceName?: string } | null
+  const body = await request.json().catch(() => null) as { organizationId?: string; countryCode?: string; products?: CanonicalFeedProduct[]; sourceName?: string } | null
   if (!body?.products || !Array.isArray(body.products)) return json({ error: 'Products array ontbreekt.' }, { status: 400 })
   if (body.organizationId !== ENGELS_ORGANIZATION_ID) return json({ error: 'Alleen de actieve Engels Group organisatie kan naar PrySight synchroniseren.' }, { status: 403 })
+  if (body.products.length === 0) return json({ error: 'De synchronisatiebatch bevat geen producten.' }, { status: 400 })
   if (body.products.length > 5000) return json({ error: 'Maximaal 5000 producten per synchronisatiebatch.' }, { status: 413 })
-  const products = body.products
+
+  const countryCode = body.countryCode?.trim().toUpperCase() ?? ''
+  if (!COUNTRY_CODE.test(countryCode)) {
+    return json({ error: 'countryCode is verplicht en moet een geldige ISO-landcode van twee letters bevatten, bijvoorbeeld NL, BE of DE.' }, { status: 400 })
+  }
 
   return withDatabaseRoute(async () => {
+    const market = await prisma.country.findFirst({ where: { code: countryCode, isActive: true }, select: { code: true, name: true, currency: true } })
+    if (!market) return json({ error: `Markt ${countryCode} bestaat niet of is niet actief in PrySight.` }, { status: 400 })
+
+    const invalidCurrency = body.products.find((product) => {
+      const currency = typeof product.currency === 'string' ? product.currency.trim().toUpperCase() : market.currency.toUpperCase()
+      return product.ownPrice !== null && product.ownPrice !== undefined && product.ownPrice !== '' && currency !== market.currency.toUpperCase()
+    })
+    if (invalidCurrency) {
+      return json({ error: `Een product in ${countryCode} gebruikt een andere valuta dan ${market.currency}. Cross-currency import is geblokkeerd totdat PrySight een actuele FX-bron heeft.` }, { status: 400 })
+    }
+
     const result = await ingestCanonicalProducts({
-      sourceKey: `syntrx:cieqifmizthutfvfgfny:${ENGELS_ORGANIZATION_ID}`,
-      sourceName: body.sourceName?.trim() || 'Syntrx PIM · Engels Group',
+      sourceKey: `syntrx:${SYNTRX_PROJECT_ID}:${ENGELS_ORGANIZATION_ID}:${countryCode}`,
+      sourceName: body.sourceName?.trim() || `Syntrx PIM · Engels Group · ${countryCode}`,
       sourceType: FeedSourceType.SYNTRX,
-      products,
-      config: { projectId: 'cieqifmizthutfvfgfny', organizationId: ENGELS_ORGANIZATION_ID, syncedBy: access.user.email ?? access.user.id },
+      countryCode,
+      products: body.products,
+      config: {
+        projectId: SYNTRX_PROJECT_ID,
+        organizationId: ENGELS_ORGANIZATION_ID,
+        countryCode,
+        marketName: market.name,
+        syncedBy: access.user.email ?? access.user.id,
+      },
     })
 
-    return json(result)
+    return json({ ...result, countryCode, currency: market.currency })
   })
 }
