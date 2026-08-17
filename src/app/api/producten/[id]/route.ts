@@ -35,28 +35,38 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   return withDatabaseRoute(async () => {
     const uniqueCountryIds = [...new Set(countryIds ?? [])]
-    const countries = uniqueCountryIds.length
-      ? await prisma.country.findMany({ where: { id: { in: uniqueCountryIds }, isActive: true } })
-      : []
+    const [countries, existingProduct, existingMarkets] = await Promise.all([
+      uniqueCountryIds.length ? prisma.country.findMany({ where: { id: { in: uniqueCountryIds }, isActive: true } }) : Promise.resolve([]),
+      prisma.product.findUnique({ where: { id } }),
+      prisma.productMarket.findMany({ where: { productId: id } }),
+    ])
+    if (!existingProduct) return NextResponse.json({ error: 'Product niet gevonden.' }, { status: 404 })
     if (countries.length !== uniqueCountryIds.length) {
       return NextResponse.json({ error: 'Een of meer geselecteerde landen bestaan niet of zijn niet actief.' }, { status: 400 })
     }
 
+    const currency = productData.currency.toUpperCase()
     const ownPrice = productData.ownPrice === null || productData.ownPrice === undefined ? null : new Prisma.Decimal(productData.ownPrice)
+    if (countryIds && ownPrice && countries.some((country) => country.currency.toUpperCase() !== currency)) {
+      return NextResponse.json({ error: 'Eén eigen prijs kan alleen tegelijk aan landen met dezelfde valuta worden toegewezen.' }, { status: 400 })
+    }
+
+    const existingByCountry = new Map(existingMarkets.map((market) => [market.countryId, market]))
     const product = await prisma.$transaction(async (tx) => {
       const updated = await tx.product.update({
         where: { id },
-        data: { ...productData, ownPrice },
+        data: { ...productData, ownPrice, currency },
       })
 
       if (countryIds) {
         await tx.productMarket.deleteMany({ where: { productId: id, countryId: { notIn: uniqueCountryIds } } })
         for (const country of countries) {
+          const previous = existingByCountry.get(country.id)
           await tx.productMarket.upsert({
             where: { productId_countryId: { productId: id, countryId: country.id } },
             update: {
               ownPrice,
-              currency: productData.currency || country.currency,
+              currency: country.currency,
               stockStatus: productData.stockStatus || null,
               isActive: productData.isActive,
             },
@@ -64,12 +74,17 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
               productId: id,
               countryId: country.id,
               ownPrice,
-              currency: productData.currency || country.currency,
+              currency: country.currency,
               stockStatus: productData.stockStatus || null,
               isActive: productData.isActive,
             },
           })
+          if (ownPrice && (!previous?.ownPrice || !previous.ownPrice.eq(ownPrice) || previous.currency !== country.currency)) {
+            await tx.ownPriceHistory.create({ data: { productId: id, countryId: country.id, recordedAt: new Date(), price: ownPrice, currency: country.currency } })
+          }
         }
+      } else if (ownPrice && (!existingProduct.ownPrice || !existingProduct.ownPrice.eq(ownPrice) || existingProduct.currency !== currency)) {
+        await tx.ownPriceHistory.create({ data: { productId: id, countryId: null, recordedAt: new Date(), price: ownPrice, currency } })
       }
 
       return updated
