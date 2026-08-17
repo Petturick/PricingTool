@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { authorizeApi, VIEW_ROLES, WRITE_ROLES } from '@/lib/authz'
 import { linkCompetitorOffer } from '@/lib/catalog'
 import { isDatabaseConnectivityError } from '@/lib/database-health'
 import { withDatabaseRoute } from '@/lib/database-route'
@@ -20,6 +21,9 @@ const schema = z.object({
 })
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const access = await authorizeApi(VIEW_ROLES)
+  if (access.response) return access.response
+
   const { id } = await params
   return withDatabaseRoute(async () => {
     const matches = await prisma.productMatch.findMany({
@@ -39,6 +43,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const access = await authorizeApi(WRITE_ROLES)
+  if (access.response) return access.response
+
   const { id } = await params
   const parsed = schema.safeParse(await request.json())
   if (!parsed.success) {
