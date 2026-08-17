@@ -127,6 +127,7 @@ async function main() {
       entityType: 'System',
       entityId: 'safe-test-seed',
       newValue: { products: fixtures.length, countries: countries.length },
+      ipAddress: 'seed',
     },
   })
 
