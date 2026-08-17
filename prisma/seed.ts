@@ -109,13 +109,14 @@ async function main() {
         },
       },
     })
-    await prisma.ownPriceHistory.create({
-      data: {
+    await prisma.ownPriceHistory.createMany({
+      data: ['NL', 'BE'].map((code) => ({
         productId: product.id,
+        countryId: countryMap.get(code)!,
         recordedAt: new Date(),
         price: new Prisma.Decimal(fixture.price),
         currency: 'EUR',
-      },
+      })),
     })
   }
 
