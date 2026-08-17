@@ -2,11 +2,15 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { verifyBearerSecret } from '@/lib/api-auth'
+import { authorizeApi, VIEW_ROLES } from '@/lib/authz'
 import { withDatabaseRoute } from '@/lib/database-route'
 import { runDuePriceChecks } from '@/lib/price-monitoring'
 import { prisma } from '@/lib/prisma'
 
 export async function GET(request: Request) {
+  const access = await authorizeApi(VIEW_ROLES)
+  if (access.response) return access.response
+
   const { searchParams } = new URL(request.url)
   const competitorOfferId = searchParams.get('competitorOfferId') ?? undefined
   const productId = searchParams.get('productId') ?? undefined
