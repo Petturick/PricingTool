@@ -1,7 +1,8 @@
 'use server'
 
 import { ImportFormat, ImportStatus, MatchStatus, Prisma } from '@/generated/prisma/client'
-import { createAuditLog, getSystemUser } from '@/lib/audit'
+import { createAuditLog } from '@/lib/audit'
+import { requireUser, WRITE_ROLES } from '@/lib/authz'
 import { matchProducts } from '@/lib/product-matching'
 import { normalizePrice } from '@/lib/price-normalization'
 import { prisma } from '@/lib/prisma'
@@ -17,6 +18,7 @@ function toDecimal(value: string | number | null | undefined) {
 }
 
 export async function processImportRowsAction(payload: unknown) {
+  const currentUser = await requireUser(WRITE_ROLES)
   const parsed = importPayloadSchema.safeParse(payload)
   if (!parsed.success) {
     return {
@@ -26,7 +28,6 @@ export async function processImportRowsAction(payload: unknown) {
     }
   }
 
-  const systemUser = await getSystemUser()
   const warnings: string[] = []
   const errors: string[] = []
   const task = await prisma.importTask.create({
@@ -37,7 +38,7 @@ export async function processImportRowsAction(payload: unknown) {
       totalRows: parsed.data.rows.length,
       processedRows: 0,
       errorRows: 0,
-      importedBy: systemUser.id,
+      importedBy: currentUser.id,
     },
   })
 
@@ -68,6 +69,7 @@ export async function processImportRowsAction(payload: unknown) {
         where: { articleNumber },
         update: {
           ean: row.ean || undefined,
+          gtin: row.ean || undefined,
           name: row.productName || articleNumber,
           productGroupId: productGroup.id,
           ownPrice: ownPrice ?? undefined,
@@ -89,6 +91,12 @@ export async function processImportRowsAction(payload: unknown) {
           stockStatus: row.ownStock || 'Onbekend',
           currency,
         },
+      })
+
+      await prisma.productMarket.upsert({
+        where: { productId_countryId: { productId: product.id, countryId: country.id } },
+        update: { ownPrice, currency, stockStatus: row.ownStock || undefined, isActive: true },
+        create: { productId: product.id, countryId: country.id, ownPrice, currency, stockStatus: row.ownStock || 'Onbekend', isActive: true },
       })
 
       if (ownPrice) {
@@ -125,8 +133,19 @@ export async function processImportRowsAction(payload: unknown) {
         : null
       const offerUrl = row.competitorUrl || row.engelsUrl || `${competitor.website.replace(/\/$/, '')}/product/${articleNumber}`
 
-      const offer = await prisma.competitorOffer.create({
-        data: {
+      const offer = await prisma.competitorOffer.upsert({
+        where: { competitorId_url: { competitorId: competitor.id, url: offerUrl } },
+        update: {
+          rawPrice,
+          normalizedPrice: normalized,
+          currency,
+          packagingUnit: row.packagingUnit || 'stuks',
+          packagingQty,
+          stockStatus: row.competitorStock || 'Onbekend',
+          lastCheckedAt: row.lastChecked ? new Date(row.lastChecked) : new Date(),
+          isActive: true,
+        },
+        create: {
           competitorId: competitor.id,
           url: offerUrl,
           rawPrice,
@@ -139,6 +158,11 @@ export async function processImportRowsAction(payload: unknown) {
           lastCheckedAt: row.lastChecked ? new Date(row.lastChecked) : new Date(),
         },
       })
+
+      const existingMatch = await prisma.productMatch.findUnique({ where: { competitorOfferId: offer.id } })
+      if (existingMatch && existingMatch.productId !== product.id) {
+        throw new Error(`Concurrent URL is al gekoppeld aan een ander product (${existingMatch.productId}).`)
+      }
 
       const matchResult = matchProducts(
         {
@@ -160,17 +184,29 @@ export async function processImportRowsAction(payload: unknown) {
         },
       )
 
-      await prisma.productMatch.create({
-        data: {
+      const approved = matchResult.status === 'CERTAIN'
+      const match = await prisma.productMatch.upsert({
+        where: { competitorOfferId: offer.id },
+        update: {
+          productId: product.id,
+          confidenceScore: matchResult.score,
+          matchStatus: matchResult.status as MatchStatus,
+          matchEvidence: matchResult.evidence as Prisma.InputJsonValue,
+          approvedBy: approved ? currentUser.id : null,
+          approvedAt: approved ? new Date() : null,
+        },
+        create: {
           productId: product.id,
           competitorOfferId: offer.id,
           confidenceScore: matchResult.score,
           matchStatus: matchResult.status as MatchStatus,
           matchEvidence: matchResult.evidence as Prisma.InputJsonValue,
-          approvedBy: matchResult.status === 'CERTAIN' ? systemUser.id : null,
-          approvedAt: matchResult.status === 'CERTAIN' ? new Date() : null,
+          approvedBy: approved ? currentUser.id : null,
+          approvedAt: approved ? new Date() : null,
         },
       })
+
+      await prisma.competitorOffer.update({ where: { id: offer.id }, data: { productMatchId: match.id } })
 
       if (rawPrice) {
         await prisma.priceHistory.create({
@@ -221,7 +257,7 @@ export async function processImportRowsAction(payload: unknown) {
   })
 
   await createAuditLog({
-    userId: systemUser.id,
+    userId: currentUser.id,
     action: 'IMPORT_CONFIRM',
     entityType: 'ImportTask',
     entityId: task.id,
