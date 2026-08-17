@@ -1,0 +1,64 @@
+name: PrySight live login smoke
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check live login and health
+        shell: bash
+        run: |
+          set +e
+          login_file="$(mktemp)"
+          health_file="$(mktemp)"
+          trap 'rm -f "$login_file" "$health_file"' EXIT
+
+          login_code="$(curl --silent --show-error --location --max-time 20 -o "$login_file" -w '%{http_code}' https://pricingtool.bolt.host/login)"
+          health_code="$(curl --silent --show-error --max-time 20 -o "$health_file" -w '%{http_code}' https://pricingtool.bolt.host/api/health)"
+
+          echo "Login HTTP: $login_code"
+          echo "Health HTTP: $health_code"
+
+          if grep -qi 'PrySight' "$login_file" && grep -qi 'Inloggen' "$login_file"; then
+            echo "Login page marker: current PrySight login detected"
+          else
+            echo "Login page marker: current PrySight login not detected"
+          fi
+
+          node -e '
+            const fs = require("fs");
+            try {
+              const h = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+              console.log(JSON.stringify({
+                status: h.status ?? null,
+                reachable: h.database?.reachable ?? null,
+                port: h.database?.port ?? null,
+                profile: h.database?.profile ?? null
+              }));
+            } catch {
+              console.log("Health response was not valid JSON");
+            }
+          ' "$health_file"
+
+          {
+            echo "## PrySight live smoke"
+            echo
+            echo "Login HTTP: $login_code"
+            echo "Health HTTP: $health_code"
+            if grep -qi 'PrySight' "$login_file" && grep -qi 'Inloggen' "$login_file"; then
+              echo "Login page: current PrySight login detected"
+            else
+              echo "Login page: current PrySight login not detected"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit 0
