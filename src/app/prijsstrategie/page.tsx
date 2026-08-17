@@ -13,7 +13,7 @@ const labels: Record<PricingStrategy, string> = {
 
 function read(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] : value }
 function numberValue(value: string | undefined, fallback: number) { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : fallback }
-function money(value: number | null) { return value === null ? '—' : new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(value) }
+function money(value: number | null, currency: string) { return value === null ? '—' : new Intl.NumberFormat('nl-NL', { style: 'currency', currency }).format(value) }
 
 export default async function PricingStrategyPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams
@@ -32,7 +32,7 @@ export default async function PricingStrategyPage({ searchParams }: { searchPara
   return (
     <div className="space-y-5">
       <section className="grid gap-4 xl:grid-cols-[1fr_360px]">
-        <div className="surface-card p-5 sm:p-6"><p className="eyebrow">Prijsstrategie</p><h1 className="mt-2 text-[28px] font-semibold tracking-[-0.035em] text-[#161a26]">Van marktdata naar gecontroleerd prijsadvies</h1><p className="mt-2 max-w-3xl text-[13px] leading-6 text-[#697386]">De engine gebruikt uitsluitend goedgekeurde productmatches en kan uitverkochte concurrenten uitsluiten. Adviezen worden begrensd zodat één marktbeweging niet direct tot een grote prijswijziging leidt.</p></div>
+        <div className="surface-card p-5 sm:p-6"><p className="eyebrow">Prijsstrategie</p><h1 className="mt-2 text-[28px] font-semibold tracking-[-0.035em] text-[#161a26]">Van marktdata naar gecontroleerd prijsadvies</h1><p className="mt-2 max-w-3xl text-[13px] leading-6 text-[#697386]">De engine rekent per product én land. Alleen goedgekeurde matches uit dezelfde markt worden vergeleken met de eigen marktprijs, zodat prijzen uit bijvoorbeeld NL, DE en UK nooit door elkaar lopen.</p></div>
         <div className="surface-card p-5"><p className="text-[12px] font-semibold text-[#252a37]">Veiligheidsstatus</p><div className="mt-3 rounded-2xl border border-[#ffe2b9] bg-[var(--amber-soft)] p-3.5"><p className="text-[12px] font-semibold text-[#8b5a15]">Adviesmodus actief</p><p className="mt-1 text-[11px] leading-5 text-[#8b6b3c]">Automatisch publiceren blijft uit totdat kostprijs, minimale marge en een gecontroleerde writeback koppeling beschikbaar zijn.</p></div></div>
       </section>
 
@@ -43,11 +43,11 @@ export default async function PricingStrategyPage({ searchParams }: { searchPara
           ['Actieadviezen', actionable.length, 'Prijsbeweging groter dan signaaldrempel', 'var(--violet-soft)', 'var(--violet)'],
           ['Ruimte omhoog', raises, 'Mogelijke margeverbetering', 'var(--green-soft)', 'var(--green)'],
           ['Prijsdruk', lowers, 'Markt vraagt mogelijk om verlaging', 'var(--accent-soft)', 'var(--accent)'],
-          ['Onvoldoende data', noData, 'Eigen prijs of betrouwbare marktdata ontbreekt', 'var(--amber-soft)', 'var(--amber)'],
+          ['Onvoldoende data', noData, 'Marktprijs of betrouwbare concurrentiedata ontbreekt', 'var(--amber-soft)', 'var(--amber)'],
         ].map(([title, value, helper, background, color]) => <div key={String(title)} className="surface-card-flat p-4"><div className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: String(background), color: String(color) }}>{title}</div><p className="mt-3 text-[27px] font-semibold tracking-[-0.03em] text-[#171b28]">{String(value)}</p><p className="mt-1 text-[11px] leading-5 text-[#8790a2]">{helper}</p></div>)}
       </section>
 
-      <section className="surface-card p-4 sm:p-5"><div className="mb-3"><h2 className="text-[14px] font-semibold text-[#252a37]">Prijsadviezen</h2><p className="mt-1 text-[11px] text-[#8a93a5]">Marktpositie en advies op basis van de gekozen simulatieregels.</p></div><DataTable emptyText="Nog geen producten met voldoende marktdata." columns={[{ key: 'product', header: 'Product' }, { key: 'eigen', header: 'Eigen prijs' }, { key: 'laagste', header: 'Laagste markt' }, { key: 'mediaan', header: 'Mediaan' }, { key: 'advies', header: 'Advies' }, { key: 'actie', header: 'Actie' }, { key: 'reden', header: 'Onderbouwing' }]} rows={recommendations.map((item) => ({ product: `${item.articleNumber} · ${item.productName}`, eigen: money(item.ownPrice), laagste: money(item.marketLowest), mediaan: money(item.marketMedian), advies: money(item.recommendedPrice), actie: item.action === 'RAISE' ? 'Verhogen' : item.action === 'LOWER' ? 'Verlagen' : item.action === 'KEEP' ? 'Behouden' : 'Geen data', reden: item.reason }))} /></section>
+      <section className="surface-card p-4 sm:p-5"><div className="mb-3"><h2 className="text-[14px] font-semibold text-[#252a37]">Prijsadviezen per markt</h2><p className="mt-1 text-[11px] text-[#8a93a5]">Elke rij is één product in één land. Alleen concurrenten uit diezelfde markt tellen mee.</p></div><DataTable emptyText="Nog geen productmarkten met voldoende data." columns={[{ key: 'product', header: 'Product' }, { key: 'markt', header: 'Markt' }, { key: 'eigen', header: 'Eigen prijs' }, { key: 'laagste', header: 'Laagste markt' }, { key: 'mediaan', header: 'Mediaan' }, { key: 'advies', header: 'Advies' }, { key: 'actie', header: 'Actie' }, { key: 'reden', header: 'Onderbouwing' }]} rows={recommendations.map((item) => ({ product: `${item.articleNumber} · ${item.productName}`, markt: `${item.countryCode} · ${item.countryName}`, eigen: money(item.ownPrice, item.currency), laagste: money(item.marketLowest, item.currency), mediaan: money(item.marketMedian, item.currency), advies: money(item.recommendedPrice, item.currency), actie: item.action === 'RAISE' ? 'Verhogen' : item.action === 'LOWER' ? 'Verlagen' : item.action === 'KEEP' ? 'Behouden' : 'Geen data', reden: item.reason }))} /></section>
     </div>
   )
 }
