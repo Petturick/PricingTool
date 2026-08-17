@@ -55,6 +55,7 @@ export const importColumnMappingSchema = z.object({
   competitorStock: z.string().optional(),
   lastChecked: z.string().optional(),
   packagingUnit: z.string().optional(),
+  packagingQty: z.string().optional(),
 })
 
 export const importRowSchema = z.record(z.string(), z.string())
