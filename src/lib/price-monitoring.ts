@@ -128,19 +128,21 @@ export async function runPriceCheck(competitorOfferId: string) {
     const { html, statusCode } = await fetchOfferPage(offer.url)
     const extracted = extractOfferSnapshot(html)
     if (!extracted.price) throw new Error('Geen betrouwbare prijs gevonden op de productpagina.')
-    const currency = extracted.currency ?? offer.currency ?? offer.competitor.country.currency
+    const currency = (extracted.currency ?? offer.currency ?? offer.competitor.country.currency).toUpperCase()
+    const marketCurrency = offer.competitor.country.currency.toUpperCase()
+    if (currency !== marketCurrency) throw new Error(`De gevonden valuta ${currency} wijkt af van de marktvaluta ${marketCurrency}. Configureer eerst een actuele wisselkoersbron voordat deze prijs wordt gebruikt.`)
     const packagingQty = extracted.packagingQty ?? offer.packagingQty ?? 1
-    const normalized = normalizePrice(new Prisma.Decimal(extracted.price), offer.vatIncluded, offer.competitor.country.vatRate, currency, offer.packagingUnit, packagingQty, true, 'EUR').amount
+    const normalized = normalizePrice(new Prisma.Decimal(extracted.price), offer.vatIncluded, offer.competitor.country.vatRate, currency, offer.packagingUnit, packagingQty, true, marketCurrency).amount
     await prisma.$transaction([
       prisma.priceCheck.create({ data: { competitorOfferId: offer.id, checkedAt, foundPrice: new Prisma.Decimal(extracted.price), currency, stockStatus: extracted.stockStatus ?? offer.stockStatus, productTitle: extracted.productTitle ?? offer.productMatch?.product.name ?? null, packagingUnit: offer.packagingUnit, checkMethod: extracted.method ?? 'SCRAPER', statusCode, sourceUrl: offer.url, isSuccess: true } }),
       prisma.priceHistory.create({ data: { competitorOfferId: offer.id, recordedAt: checkedAt, price: new Prisma.Decimal(extracted.price), normalizedPrice: normalized, currency, stockStatus: extracted.stockStatus ?? offer.stockStatus, source: extracted.method ?? 'SCRAPER' } }),
-      prisma.competitorOffer.update({ where: { id: offer.id }, data: { rawPrice: new Prisma.Decimal(extracted.price), normalizedPrice: normalized, currency, stockStatus: extracted.stockStatus ?? offer.stockStatus, lastCheckedAt: checkedAt } }),
+      prisma.competitorOffer.update({ where: { id: offer.id }, data: { rawPrice: new Prisma.Decimal(extracted.price), normalizedPrice: normalized, currency: marketCurrency, stockStatus: extracted.stockStatus ?? offer.stockStatus, lastCheckedAt: checkedAt } }),
       prisma.competitor.update({ where: { id: offer.competitorId }, data: { lastCheckedAt: checkedAt } }),
     ])
     const productMarket = offer.productMatch?.product.markets.find((market) => market.countryId === offer.competitor.countryId && market.isActive)
-    const ownPrice = productMarket?.ownPrice ?? offer.productMatch?.product.ownPrice ?? null
+    const ownPrice = productMarket?.ownPrice ?? (offer.productMatch?.product.currency === marketCurrency ? offer.productMatch?.product.ownPrice : null) ?? null
     await evaluateMonitoringAlerts({ competitorOfferId: offer.id, competitorId: offer.competitorId, countryId: offer.competitor.countryId, productId: offer.productMatch?.productId ?? null, productGroupId: offer.productMatch?.product.productGroupId ?? null, competitorName: offer.competitor.name, productName: offer.productMatch?.product.name ?? extracted.productTitle ?? 'Ongekoppeld product', previousPrice, currentPrice: normalized, ownPrice, previousStockStatus, currentStockStatus: extracted.stockStatus ?? offer.stockStatus })
-    return { competitorOfferId: offer.id, success: true, checkedAt, price: extracted.price, normalizedPrice: normalized.toNumber(), currency, method: extracted.method, stockStatus: extracted.stockStatus ?? offer.stockStatus }
+    return { competitorOfferId: offer.id, success: true, checkedAt, price: extracted.price, normalizedPrice: normalized.toNumber(), currency: marketCurrency, method: extracted.method, stockStatus: extracted.stockStatus ?? offer.stockStatus }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Onbekende fout tijdens prijscontrole.'
     await prisma.$transaction([
