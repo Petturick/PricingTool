@@ -42,7 +42,7 @@ export function MarketingChrome({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="flex shrink-0 items-center gap-2">
-            <Link href="/dashboard" className="focus-ring rounded-xl border border-[var(--border-strong)] bg-white px-3.5 py-2.5 text-[11px] font-semibold text-[var(--brand-navy)] transition-colors hover:border-[#b9c7df] hover:bg-[var(--surface-soft)] sm:px-4">
+            <Link href="/login" className="focus-ring rounded-xl border border-[var(--border-strong)] bg-white px-3.5 py-2.5 text-[11px] font-semibold text-[var(--brand-navy)] transition-colors hover:border-[#b9c7df] hover:bg-[var(--surface-soft)] sm:px-4">
               Login
             </Link>
             <Link href="/request-demo" className="focus-ring rounded-xl bg-[var(--brand-blue)] px-3.5 py-2.5 text-[11px] font-semibold text-white shadow-[0_8px_22px_rgba(65,105,201,0.16)] transition-transform hover:-translate-y-0.5 sm:px-4">
