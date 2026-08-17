@@ -10,6 +10,13 @@ const credentialsSchema = z.object({
 })
 
 const protectedAdminPrefix = '/beheer'
+const validRoles = new Set(['ADMIN', 'ANALYST', 'READONLY'] as const)
+type PrySightRole = 'ADMIN' | 'ANALYST' | 'READONLY'
+
+function parseRole(value: unknown): PrySightRole | undefined {
+  const role = String(value ?? '') as PrySightRole
+  return validRoles.has(role) ? role : undefined
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
@@ -53,14 +60,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     jwt({ token, user }) {
       if (user) {
         token.userId = user.id
-        token.role = user.role
+        token.role = parseRole(user.role)
       }
       return token
     },
     session({ session, token }) {
       if (session.user) {
         session.user.id = String(token.userId ?? token.sub ?? '')
-        session.user.role = token.role
+        const role = parseRole(token.role)
+        if (role) session.user.role = role
       }
       return session
     },
