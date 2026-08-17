@@ -91,11 +91,8 @@ export async function processImportRowsAction(payload: unknown) {
             gtin: row.ean || undefined,
             name: row.productName || articleNumber,
             productGroupId: productGroup.id,
-            ownPrice: ownPrice ?? undefined,
             packagingUnit: row.packagingUnit || undefined,
             packagingQty,
-            stockStatus: row.ownStock || undefined,
-            currency: marketCurrency,
             isActive: true,
           },
           create: {
@@ -104,11 +101,11 @@ export async function processImportRowsAction(payload: unknown) {
             gtin: row.ean || null,
             name: row.productName || articleNumber,
             productGroupId: productGroup.id,
-            ownPrice,
+            ownPrice: null,
             vatIncluded: true,
             packagingUnit: row.packagingUnit || 'stuks',
             packagingQty,
-            stockStatus: row.ownStock || 'Onbekend',
+            stockStatus: null,
             currency: marketCurrency,
           },
         })
@@ -120,10 +117,10 @@ export async function processImportRowsAction(payload: unknown) {
         })
 
         if (ownPrice) {
-          const latestOwn = await tx.ownPriceHistory.findFirst({ where: { productId: product.id }, orderBy: { recordedAt: 'desc' } })
+          const latestOwn = await tx.ownPriceHistory.findFirst({ where: { productId: product.id, countryId: country.id }, orderBy: { recordedAt: 'desc' } })
           if (!latestOwn || !latestOwn.price.eq(ownPrice) || latestOwn.currency !== marketCurrency) {
             await tx.ownPriceHistory.create({
-              data: { productId: product.id, recordedAt: checkedAt, price: ownPrice, currency: marketCurrency },
+              data: { productId: product.id, countryId: country.id, recordedAt: checkedAt, price: ownPrice, currency: marketCurrency },
             })
           }
         }
