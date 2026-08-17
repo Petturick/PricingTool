@@ -8,12 +8,16 @@ if (process.env.NODE_ENV === 'production' || process.env.ALLOW_DESTRUCTIVE_SEED 
   throw new Error('Destructive PrySight seed blocked. Set ALLOW_DESTRUCTIVE_SEED=true in a non-production environment to continue.')
 }
 
-const adminEmail = process.env.PRYSIGHT_SEED_ADMIN_EMAIL?.trim().toLowerCase()
-const adminPassword = process.env.PRYSIGHT_SEED_ADMIN_PASSWORD
-if (!adminEmail || !adminPassword || adminPassword.length < 12) {
-  throw new Error('Set PRYSIGHT_SEED_ADMIN_EMAIL and PRYSIGHT_SEED_ADMIN_PASSWORD (minimum 12 characters) before seeding.')
+function requireSeedCredentials() {
+  const email = process.env.PRYSIGHT_SEED_ADMIN_EMAIL?.trim().toLowerCase()
+  const password = process.env.PRYSIGHT_SEED_ADMIN_PASSWORD
+  if (!email || !password || password.length < 12) {
+    throw new Error('Set PRYSIGHT_SEED_ADMIN_EMAIL and PRYSIGHT_SEED_ADMIN_PASSWORD (minimum 12 characters) before seeding.')
+  }
+  return { email, password }
 }
 
+const { email: adminEmail, password: adminPassword } = requireSeedCredentials()
 const connection = resolveDatabaseConnection()
 if (!connection.configured) throw new Error('Database is not configured for seeding.')
 
