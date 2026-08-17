@@ -5,6 +5,7 @@ import writeXlsxFile from 'write-excel-file/node'
 import { ReportStatus } from '@/generated/prisma/client'
 import { buildWeeklyReportPayload } from '@/app/actions/reportActions'
 import { verifyBearerSecret } from '@/lib/api-auth'
+import { authorizeApi, VIEW_ROLES } from '@/lib/authz'
 import { withDatabaseRoute } from '@/lib/database-route'
 import { prisma } from '@/lib/prisma'
 
@@ -18,6 +19,9 @@ function flattenReportRows(content: unknown): (string | number | boolean | Date 
 async function buildXlsxBuffer(content: unknown) { const buffer = await writeXlsxFile(flattenReportRows(content)).toBuffer(); return new Uint8Array(buffer) }
 
 export async function GET(request: Request) {
+  const access = await authorizeApi(VIEW_ROLES)
+  if (access.response) return access.response
+
   return withDatabaseRoute(async () => {
     const { searchParams } = new URL(request.url)
     const format = searchParams.get('format'); const id = searchParams.get('id')
