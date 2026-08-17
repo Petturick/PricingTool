@@ -11,11 +11,10 @@ export const productSchema = z.object({
   vatIncluded: z.coerce.boolean().default(true),
   packagingUnit: z.string().optional().nullable(),
   packagingQty: z.coerce.number().int().positive().default(1),
-  currency: z.string().trim().length(3).transform((value) => value.toUpperCase()).default('EUR'),
+  currency: z.string().default('EUR'),
   stockStatus: z.string().optional().nullable(),
   isActive: z.coerce.boolean().default(true),
   notes: z.string().optional().nullable(),
-  countryIds: z.array(z.string().min(1)).optional(),
 })
 
 export const competitorSchema = z.object({
@@ -55,7 +54,6 @@ export const importColumnMappingSchema = z.object({
   competitorStock: z.string().optional(),
   lastChecked: z.string().optional(),
   packagingUnit: z.string().optional(),
-  packagingQty: z.string().optional(),
 })
 
 export const importRowSchema = z.record(z.string(), z.string())
@@ -99,9 +97,9 @@ export const webshopSchema = z.object({
 
 export const userSchema = z.object({
   id: z.string().optional(),
-  email: z.string().trim().email().transform((value) => value.toLowerCase()),
-  name: z.string().trim().min(1),
-  password: z.string().min(12, 'Gebruik minimaal 12 tekens voor een PrySight account.'),
+  email: z.string().email(),
+  name: z.string().min(1),
+  password: z.string().min(6),
   role: z.nativeEnum(UserRole),
 })
 

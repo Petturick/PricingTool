@@ -82,18 +82,16 @@ model User {
 }
 
 model Country {
-  id              String            @id @default(cuid())
-  code            String            @unique
-  name            String
-  vatRate         Decimal           @map("vat_rate")
-  currency        String
-  isActive        Boolean           @default(true) @map("is_active")
-  createdAt       DateTime          @default(now()) @map("created_at")
-  competitors     Competitor[]
-  webshops        Webshop[]
-  alertRules      AlertRule[]
-  productMarkets  ProductMarket[]
-  ownPriceHistory OwnPriceHistory[]
+  id          String       @id @default(cuid())
+  code        String       @unique
+  name        String
+  vatRate     Decimal      @map("vat_rate")
+  currency    String
+  isActive    Boolean      @default(true) @map("is_active")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  competitors Competitor[]
+  webshops    Webshop[]
+  alertRules  AlertRule[]
 
   @@map("countries")
 }
@@ -147,7 +145,6 @@ model Product {
   matches         ProductMatch[]
   alerts          Alert[]
   ownPriceHistory OwnPriceHistory[]
-  markets         ProductMarket[]
 
   @@map("products")
 }
@@ -193,28 +190,8 @@ model CompetitorOffer {
   priceChecks     PriceCheck[]
   priceHistory    PriceHistory[]
 
-  @@unique([competitorId, url])
   @@index([productMatchId])
   @@map("competitor_offers")
-}
-
-model ProductMarket {
-  id          String   @id @default(cuid())
-  productId   String   @map("product_id")
-  countryId   String   @map("country_id")
-  ownPrice    Decimal? @map("own_price")
-  currency    String
-  ownUrl      String?  @map("own_url")
-  stockStatus String?  @map("stock_status")
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  country     Country  @relation(fields: [countryId], references: [id], onDelete: Restrict)
-
-  @@unique([productId, countryId])
-  @@index([countryId, isActive])
-  @@map("product_markets")
 }
 
 model ProductMatch {
@@ -276,17 +253,13 @@ model PriceHistory {
 model OwnPriceHistory {
   id         String   @id @default(cuid())
   productId  String   @map("product_id")
-  countryId  String?  @map("country_id")
   recordedAt DateTime @map("recorded_at")
   price      Decimal
   currency   String
   createdAt  DateTime @default(now()) @map("created_at")
   product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  country    Country? @relation(fields: [countryId], references: [id], onDelete: Restrict)
 
   @@index([recordedAt])
-  @@index([productId, countryId, recordedAt])
-  @@index([countryId])
   @@map("own_price_history")
 }
 

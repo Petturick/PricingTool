@@ -3,9 +3,6 @@ export const dynamic = 'force-dynamic'
 import { createHash } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { FeedSourceType } from '@/generated/prisma/client'
-import { authorizeApi, WRITE_ROLES } from '@/lib/authz'
-import { isDatabaseConnectivityError } from '@/lib/database-health'
-import { withDatabaseRoute } from '@/lib/database-route'
 import { syncFeedSource } from '@/lib/feed-ingestion'
 import { validateFeedUrl } from '@/lib/feed-parser'
 import { prisma } from '@/lib/prisma'
@@ -15,9 +12,6 @@ function sourceKey(url: string) {
 }
 
 export async function POST(request: Request) {
-  const access = await authorizeApi(WRITE_ROLES)
-  if (access.response) return access.response
-
   const body = await request.json().catch(() => null) as { url?: string; name?: string; countryCode?: string } | null
   if (!body?.url) return NextResponse.json({ error: 'Vul een productfeed URL in.' }, { status: 400 })
 
@@ -28,19 +22,16 @@ export async function POST(request: Request) {
 
   const name = body.name?.trim() || normalized.pathname.split('/').filter(Boolean).pop()?.replace(/\.(xml|csv|json|xlsx|xls)$/i, '') || normalized.hostname
   const countryCode = (body.countryCode || 'GLOBAL').toUpperCase()
-  return withDatabaseRoute(async () => {
-    const source = await prisma.feedSource.upsert({
-      where: { sourceKey: sourceKey(normalized.toString()) },
-      update: { name, url: normalized.toString(), countryCode, isActive: true, syncError: null },
-      create: { sourceKey: sourceKey(normalized.toString()), name, sourceType: FeedSourceType.URL, url: normalized.toString(), countryCode, isActive: true },
-    })
-
-    try {
-      const result = await syncFeedSource(source.id)
-      return NextResponse.json({ feedSourceId: source.id, ...result })
-    } catch (error) {
-      if (isDatabaseConnectivityError(error)) throw error
-      return NextResponse.json({ feedSourceId: source.id, error: error instanceof Error ? error.message : 'Feed synchroniseren mislukt.' }, { status: 422 })
-    }
+  const source = await prisma.feedSource.upsert({
+    where: { sourceKey: sourceKey(normalized.toString()) },
+    update: { name, url: normalized.toString(), countryCode, isActive: true, syncError: null },
+    create: { sourceKey: sourceKey(normalized.toString()), name, sourceType: FeedSourceType.URL, url: normalized.toString(), countryCode, isActive: true },
   })
+
+  try {
+    const result = await syncFeedSource(source.id)
+    return NextResponse.json({ feedSourceId: source.id, ...result })
+  } catch (error) {
+    return NextResponse.json({ feedSourceId: source.id, error: error instanceof Error ? error.message : 'Feed synchroniseren mislukt.' }, { status: 422 })
+  }
 }

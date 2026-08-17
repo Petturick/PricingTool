@@ -6,7 +6,7 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient }
 
 export class DatabaseNotConfiguredError extends Error {
   constructor() {
-    super('Database is not configured. Add PRICING_DB_PASSWORD, PRICING_DATABASE_URL, or DATABASE_URL to the runtime environment.')
+    super('Database is not configured. Add PRICING_DB_PASSWORD with PRICING_DB_PROJECT_ID, or DATABASE_URL, to the runtime environment.')
     this.name = 'DatabaseNotConfiguredError'
   }
 }
@@ -30,14 +30,7 @@ function createPrismaClient() {
   const { connectionString, configured } = resolveDatabaseConnection()
   if (!configured) return createUnavailableClient()
 
-  const adapter = new PrismaPg({
-    connectionString,
-    max: 1,
-    connectionTimeoutMillis: 5_000,
-    idleTimeoutMillis: 10_000,
-    maxLifetimeSeconds: 60,
-    allowExitOnIdle: true,
-  })
+  const adapter = new PrismaPg({ connectionString })
   return new PrismaClient({ adapter })
 }
 

@@ -4,16 +4,9 @@ import { getSafeDatabaseStatus, resolveDatabaseConnection } from '../src/lib/dat
 
 async function main() {
   const database = getSafeDatabaseStatus()
-  if (!database.configured) throw new Error(`Databaseconfiguratie ongeldig: ${database.configurationIssue ?? 'onbekend'}.`)
+  if (!database.configured) throw new Error('DATABASE_URL ontbreekt.')
 
-  const adapter = new PrismaPg({
-    connectionString: resolveDatabaseConnection().connectionString,
-    max: 1,
-    connectionTimeoutMillis: 1_200,
-    idleTimeoutMillis: 5_000,
-    maxLifetimeSeconds: 60,
-    allowExitOnIdle: true,
-  })
+  const adapter = new PrismaPg({ connectionString: resolveDatabaseConnection().connectionString })
   const client = new PrismaClient({ adapter })
 
   try {

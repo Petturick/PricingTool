@@ -1,63 +1,85 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
-import { Client } from 'pg'
-import { getSafeDatabaseStatus, resolveDatabaseConnection } from '@/lib/database-url'
-import { getDatabaseCircuitSnapshot, recordDatabaseFailure, recordDatabaseNotConfigured, recordDatabaseSuccess } from '@/lib/database-runtime'
+import { getSafeDatabaseStatus } from '@/lib/database-url'
 
-const noStoreHeaders = { 'Cache-Control': 'no-store, max-age=0' }
+type ConnectionFailureReason =
+  | 'authentication_failed'
+  | 'pooler_tenant_not_found'
+  | 'dns_failed'
+  | 'connection_refused'
+  | 'connection_timeout'
+  | 'tls_failed'
+  | 'connection_failed'
+
+function readErrorChain(error: unknown) {
+  const messages: string[] = []
+  const codes: string[] = []
+  let current: unknown = error
+  const seen = new Set<unknown>()
+
+  while (current && typeof current === 'object' && !seen.has(current)) {
+    seen.add(current)
+    const value = current as { message?: unknown; code?: unknown; cause?: unknown }
+    if (typeof value.message === 'string') messages.push(value.message)
+    if (typeof value.code === 'string') codes.push(value.code)
+    current = value.cause
+  }
+
+  return {
+    message: messages.join(' | ').toLowerCase(),
+    code: codes.find(Boolean) ?? null,
+  }
+}
+
+function classifyConnectionFailure(error: unknown): { reason: ConnectionFailureReason; errorCode: string | null } {
+  const { message, code } = readErrorChain(error)
+
+  if (code === '28P01' || message.includes('password authentication failed') || message.includes('authentication failed')) {
+    return { reason: 'authentication_failed', errorCode: code }
+  }
+
+  if (message.includes('tenant or user not found') || message.includes('tenant not found')) {
+    return { reason: 'pooler_tenant_not_found', errorCode: code }
+  }
+
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN' || message.includes('getaddrinfo')) {
+    return { reason: 'dns_failed', errorCode: code }
+  }
+
+  if (code === 'ECONNREFUSED' || message.includes('connection refused')) {
+    return { reason: 'connection_refused', errorCode: code }
+  }
+
+  if (code === 'ETIMEDOUT' || message.includes('timeout') || message.includes('timed out')) {
+    return { reason: 'connection_timeout', errorCode: code }
+  }
+
+  if (message.includes('certificate') || message.includes('tls') || message.includes('ssl')) {
+    return { reason: 'tls_failed', errorCode: code }
+  }
+
+  return { reason: 'connection_failed', errorCode: code }
+}
 
 export async function GET() {
-  const startedAt = Date.now()
   const database = getSafeDatabaseStatus()
 
   if (!database.configured) {
-    const circuit = recordDatabaseNotConfigured()
     return NextResponse.json({
-      status: 'degraded',
+      status: 'ok',
       app: true,
       database: {
         ...database,
         reachable: false,
         reason: 'not_configured',
-        retryAfterMs: circuit.retryAfterMs,
-        durationMs: Date.now() - startedAt,
-      },
-    }, { headers: noStoreHeaders })
-  }
-
-  const existingCircuit = getDatabaseCircuitSnapshot()
-  if (existingCircuit.open) {
-    return NextResponse.json({
-      status: 'degraded',
-      app: true,
-      database: {
-        ...database,
-        reachable: false,
-        cached: true,
-        reason: existingCircuit.reason,
-        errorCode: existingCircuit.errorCode,
-        retryAfterMs: existingCircuit.retryAfterMs,
-        durationMs: Date.now() - startedAt,
-      },
-    }, {
-      headers: {
-        ...noStoreHeaders,
-        'Retry-After': String(Math.max(Math.ceil(existingCircuit.retryAfterMs / 1000), 1)),
       },
     })
   }
 
   try {
-    const { connectionString } = resolveDatabaseConnection()
-    const client = new Client({ connectionString, connectionTimeoutMillis: 6_000 })
-    try {
-      await client.connect()
-      await client.query('SELECT 1')
-    } finally {
-      await client.end().catch(() => undefined)
-    }
-    recordDatabaseSuccess()
+    const { prisma } = await import('@/lib/prisma')
+    await prisma.$queryRawUnsafe('SELECT 1')
 
     return NextResponse.json({
       status: 'ok',
@@ -65,11 +87,11 @@ export async function GET() {
       database: {
         ...database,
         reachable: true,
-        durationMs: Date.now() - startedAt,
       },
-    }, { headers: noStoreHeaders })
+    })
   } catch (error) {
-    const failure = recordDatabaseFailure(error)
+    console.error('Database healthcheck failed', error)
+    const failure = classifyConnectionFailure(error)
 
     return NextResponse.json({
       status: 'degraded',
@@ -77,15 +99,7 @@ export async function GET() {
       database: {
         ...database,
         reachable: false,
-        reason: failure.reason,
-        errorCode: failure.errorCode,
-        retryAfterMs: failure.retryAfterMs,
-        durationMs: Date.now() - startedAt,
-      },
-    }, {
-      headers: {
-        ...noStoreHeaders,
-        'Retry-After': String(Math.max(Math.ceil(failure.retryAfterMs / 1000), 1)),
+        ...failure,
       },
     })
   }

@@ -10,15 +10,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      BASE_URL: ${{ vars.PRICING_TOOL_BASE_URL || 'https://pricingtool.bolt.host' }}
+      BASE_URL: ${{ secrets.PRICING_TOOL_BASE_URL }}
       API_KEY: ${{ secrets.REPORT_API_KEY }}
     steps:
       - name: Generate weekly report
         shell: bash
         run: |
-          if [ -z "$API_KEY" ]; then
-            echo "::error::REPORT_API_KEY is not configured."
-            exit 1
+          if [ -z "$BASE_URL" ] || [ -z "$API_KEY" ]; then
+            echo "PRICING_TOOL_BASE_URL or REPORT_API_KEY is not configured, skipping."
+            exit 0
           fi
           curl --fail-with-body --retry 2 --retry-delay 5 \
             -X POST "${BASE_URL%/}/api/rapportages" \

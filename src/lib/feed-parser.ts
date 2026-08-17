@@ -1,6 +1,5 @@
 import { parse } from 'csv-parse/sync'
 import { readSheet } from 'read-excel-file/node'
-import { fetchPublicUrl, readResponseArrayBufferLimited, validatePublicHttpUrl } from '@/lib/safe-remote-url'
 
 export type ParsedFeedFormat = 'CSV' | 'XLSX' | 'XLS' | 'JSON' | 'XML'
 
@@ -136,8 +135,21 @@ export async function parseFeedBuffer(name: string, contentType: string | null, 
   return { ...parsed, format }
 }
 
+function isPrivateHostname(hostname: string) {
+  const host = hostname.toLowerCase()
+  if (host === 'localhost' || host.endsWith('.local')) return true
+  if (/^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host)) return true
+  const match = host.match(/^172\.(\d+)\./)
+  if (match && Number(match[1]) >= 16 && Number(match[1]) <= 31) return true
+  if (host === '::1' || host.startsWith('fc') || host.startsWith('fd')) return true
+  return false
+}
+
 export function validateFeedUrl(value: string) {
-  const url = validatePublicHttpUrl(value, 'De feed URL')
+  let url: URL
+  try { url = new URL(value.trim()) } catch { throw new Error('De feed URL is ongeldig.') }
+  if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Alleen HTTP en HTTPS feeds zijn toegestaan.')
+  if (isPrivateHostname(url.hostname)) throw new Error('Lokale en private netwerkadressen zijn niet toegestaan als feedbron.')
   const searchable = `${url.pathname}${url.search}`.toLowerCase()
   if (searchable.includes('sitemap') || searchable.endsWith('/robots.txt')) throw new Error('Een sitemap of robots.txt is geen productfeed.')
   return url
@@ -154,12 +166,15 @@ export function normalizeGoogleDriveUrl(input: URL) {
 
 export async function fetchAndParseFeed(value: string) {
   const requested = normalizeGoogleDriveUrl(validateFeedUrl(value))
-  const response = await fetchPublicUrl(requested, {
+  const response = await fetch(requested, {
+    redirect: 'follow',
     signal: AbortSignal.timeout(30_000),
-    headers: { 'User-Agent': 'PrySight Feed Importer/1.0' },
+    headers: { 'User-Agent': 'PricingTool Feed Importer/1.0' },
   })
   if (!response.ok) throw new Error(`Feed ophalen mislukt met HTTP ${response.status}.`)
-  validateFeedUrl(response.url || requested.toString())
-  const buffer = await readResponseArrayBufferLimited(response, MAX_FEED_BYTES, 'Feed')
+  validateFeedUrl(response.url)
+  const length = Number(response.headers.get('content-length') ?? 0)
+  if (length > MAX_FEED_BYTES) throw new Error('Feed is groter dan 15 MB.')
+  const buffer = await response.arrayBuffer()
   return parseFeedBuffer(response.url || requested.toString(), response.headers.get('content-type'), buffer)
 }

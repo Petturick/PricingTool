@@ -1,12 +1,12 @@
-# PrySight productie, Supabase en feeds
+# PricingTool productie, Supabase en feeds
 
 ## Productiedatabase
 
-PrySight gebruikt Supabase project `xmedaatjwxkmwkjmwuuz` in regio `eu-west-2`.
+PricingTool gebruikt Supabase project `xmedaatjwxkmwkjmwuuz` in regio `eu-west-2`.
 
 De browser publishable key is geen databasewachtwoord. Prisma draait server-side en gebruikt daarom de Supavisor PostgreSQL pooler.
 
-Voor Bolt gebruikt PrySight bestaande technische secretnamen met de prefix `PRICING_`. Die namen blijven bewust behouden om bestaande deployments en secrets niet te breken.
+Voor Bolt gebruikt PricingTool eigen secretnamen, omdat Bolt custom secretnamen met de prefix `SUPABASE_` reserveert.
 
 Aanbevolen Bolt runtime variabelen:
 
@@ -18,7 +18,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://xmedaatjwxkmwkjmwuuz.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
 ```
 
-`PRICING_DB_PROJECT_ID` plus `PRICING_DB_PASSWORD` heeft in de applicatie voorrang op een verouderd wachtwoord in `PRICING_DATABASE_URL` of `DATABASE_URL`. Een toegewezen poolerhost uit die URL blijft behouden. De oudere `SUPABASE_PROJECT_ID`, `SUPABASE_DB_REGION` en `SUPABASE_DB_PASSWORD` namen blijven als backwards-compatible fallback ondersteund voor GitHub Actions en andere runtimes.
+`PRICING_DB_PROJECT_ID` plus `PRICING_DB_PASSWORD` heeft in de applicatie voorrang op een oudere `DATABASE_URL`. De oudere `SUPABASE_PROJECT_ID`, `SUPABASE_DB_REGION` en `SUPABASE_DB_PASSWORD` namen blijven als backwards-compatible fallback ondersteund voor GitHub Actions en andere runtimes.
 
 ## GitHub production environment
 
@@ -42,13 +42,9 @@ Voeg in Bolt minimaal toe:
 
 `PRICING_DB_PASSWORD=<database password>`
 
-Verwijder voorbeeldwaarden zoals `[YOUR-PASSWORD]`. Na iedere wijziging van Bolt runtime secrets is een nieuwe deployment nodig. Controleer daarna `/api/health`, `database.reachable` moet `true` zijn.
-
 `NEXTAUTH_SECRET=<random secret van minimaal 32 tekens>`
 
 `NEXTAUTH_URL=https://pricingtool.bolt.host`
-
-De huidige Bolt-hostnaam kan technisch ongewijzigd blijven; de zichtbare productidentiteit is PrySight. Pas `NEXTAUTH_URL` pas aan nadat een nieuwe productiehost of custom domain daadwerkelijk actief is.
 
 Voeg voor automatisering naar behoefte ook toe:
 
@@ -82,11 +78,11 @@ Geïmporteerde producten worden direct geüpsert in `products` en zijn daarna zi
 
 ## Syntrx PIM
 
-PrySight ontvangt Engels Group productdata via:
+PricingTool ontvangt Engels Group productdata via:
 
 `POST /api/integraties/syntrx`
 
-De koppeling gebruikt de bestaande Syntrx gebruikerssessie als Bearer token. PrySight valideert de sessie tegen Syntrx en controleert of de gebruiker binnen Engels Group een bevoegde rol heeft of platform super admin is. Er wordt dus geen gedeelde onbeveiligde synchronisatiesleutel in de browser opgeslagen.
+De koppeling gebruikt de bestaande Syntrx gebruikerssessie als Bearer token. PricingTool valideert de sessie tegen Syntrx en controleert of de gebruiker binnen Engels Group een bevoegde rol heeft of platform super admin is. Er wordt dus geen gedeelde onbeveiligde synchronisatiesleutel in de browser opgeslagen.
 
 Syntrx project: `cieqifmizthutfvfgfny`
 

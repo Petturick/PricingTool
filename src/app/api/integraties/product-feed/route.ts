@@ -3,8 +3,6 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { FeedSourceType } from '@/generated/prisma/client'
 import { verifyBearerSecret } from '@/lib/api-auth'
-import { isDatabaseConnectivityError } from '@/lib/database-health'
-import { withDatabaseRoute } from '@/lib/database-route'
 import { ingestCanonicalProducts, type CanonicalFeedProduct } from '@/lib/feed-ingestion'
 
 export async function GET() {
@@ -24,21 +22,17 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null) as { sourceKey?: string; sourceName?: string; countryCode?: string; products?: CanonicalFeedProduct[] } | null
   if (!body?.products || !Array.isArray(body.products)) return NextResponse.json({ error: 'Body moet een products array bevatten.' }, { status: 400 })
   if (body.products.length > 5000) return NextResponse.json({ error: 'Maximaal 5000 producten per request.' }, { status: 413 })
-  const products = body.products
 
-  return withDatabaseRoute(async () => {
-    try {
-      const result = await ingestCanonicalProducts({
-        sourceKey: body.sourceKey?.trim() || 'api:product-feed',
-        sourceName: body.sourceName?.trim() || 'API productfeed',
-        sourceType: FeedSourceType.API,
-        countryCode: body.countryCode?.trim().toUpperCase() || 'GLOBAL',
-        products,
-      })
-      return NextResponse.json(result, { status: result.errors > 0 ? 207 : 200 })
-    } catch (error) {
-      if (isDatabaseConnectivityError(error)) throw error
-      return NextResponse.json({ error: error instanceof Error ? error.message : 'Productfeed synchroniseren mislukt.' }, { status: 422 })
-    }
-  })
+  try {
+    const result = await ingestCanonicalProducts({
+      sourceKey: body.sourceKey?.trim() || 'api:product-feed',
+      sourceName: body.sourceName?.trim() || 'API productfeed',
+      sourceType: FeedSourceType.API,
+      countryCode: body.countryCode?.trim().toUpperCase() || 'GLOBAL',
+      products: body.products,
+    })
+    return NextResponse.json(result, { status: result.errors > 0 ? 207 : 200 })
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Productfeed synchroniseren mislukt.' }, { status: 422 })
+  }
 }

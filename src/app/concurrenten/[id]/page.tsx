@@ -1,15 +1,13 @@
 export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
-import { DatabaseNotice } from '@/components/DatabaseNotice'
 import { DataTable } from '@/components/DataTable'
 import { deriveCompetitorMetrics } from '@/lib/dashboard'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
 import { prisma } from '@/lib/prisma'
-import { safeDatabaseQuery } from '@/lib/safe-database'
 
-async function loadCompetitor(id: string) {
-  return prisma.competitor.findUnique({
+export default async function ConcurrentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const competitor = await prisma.competitor.findUnique({
     where: { id },
     include: {
       country: true,
@@ -22,16 +20,6 @@ async function loadCompetitor(id: string) {
       },
     },
   })
-}
-
-export default async function ConcurrentDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const result = await safeDatabaseQuery<Awaited<ReturnType<typeof loadCompetitor>> | null>(() => loadCompetitor(id), null)
-  const competitor = result.data
-
-  if (!result.available) {
-    return <div className="space-y-4"><DatabaseNotice /><Link href="/concurrenten" className="text-sm font-semibold text-sky-700">Terug naar concurrenten</Link></div>
-  }
 
   if (!competitor) notFound()
   const metrics = deriveCompetitorMetrics(competitor)

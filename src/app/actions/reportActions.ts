@@ -1,8 +1,7 @@
 'use server'
 
 import { Prisma, ReportStatus } from '@/generated/prisma/client'
-import { createAuditLog } from '@/lib/audit'
-import { requireUser, WRITE_ROLES } from '@/lib/authz'
+import { createAuditLog, getSystemUser } from '@/lib/audit'
 import { getDashboardSnapshot } from '@/lib/dashboard'
 import { decimalToNumber } from '@/lib/format'
 import { prisma } from '@/lib/prisma'
@@ -23,65 +22,29 @@ function endOfWeek(date: Date) {
   return copy
 }
 
-function movement(item: { productName: string; competitor: string; countryCode: string; currency: string; latestPrice: number; previousPrice: number; delta: number; recordedAt: Date }) {
-  return {
-    product: item.productName,
-    concurrent: item.competitor,
-    markt: item.countryCode,
-    valuta: item.currency,
-    vorigePrijs: item.previousPrice,
-    actuelePrijs: item.latestPrice,
-    verschil: item.delta,
-    gemetenOp: item.recordedAt.toISOString(),
-  }
-}
-
 export async function buildWeeklyReportPayload() {
-  const portfolio = await getDashboardSnapshot()
-  const activeMarkets = portfolio.filterOptions.countries.filter((country) => country.isActive)
-  const marketSnapshots = await Promise.all(activeMarkets.map(async (country) => ({
-    country,
-    snapshot: await getDashboardSnapshot({ countryId: country.id }),
-  })))
-
+  const snapshot = await getDashboardSnapshot()
   return {
-    gegenereerdOp: new Date().toISOString(),
-    portfolio: {
-      gemonitordeProducten: portfolio.kpis.monitoredProducts,
-      actieveAanbiedingen: portfolio.kpis.activeOffers,
-      geldigeMatches: portfolio.kpis.validMatches,
-      reviewMatches: portfolio.kpis.reviewMatches,
-      mislukteControles: portfolio.kpis.failedChecks,
-      verouderdeBronnen: portfolio.kpis.staleData,
-    },
-    markten: marketSnapshots.map(({ country, snapshot }) => ({
-      land: country.name,
-      landcode: country.code,
-      valuta: country.currency,
-      kpis: snapshot.kpis,
-      topStijgers: snapshot.biggestIncreases.map(movement),
-      topDalers: snapshot.biggestDecreases.map(movement),
-    })),
-    mislukteControles: portfolio.failedChecks.map((check) => ({
-      markt: check.competitorOffer.competitor.country.code,
+    samenvatting: snapshot.kpis,
+    topStijgers: snapshot.biggestIncreases,
+    topDalers: snapshot.biggestDecreases,
+    mislukteControles: snapshot.failedChecks.map((check) => ({
       concurrent: check.competitorOffer.competitor.name,
       product: check.competitorOffer.productMatch?.product.name ?? 'Ongekoppeld',
       fout: check.errorMessage,
-      tijd: check.checkedAt.toISOString(),
+      tijd: check.checkedAt,
     })),
-    verouderdeData: portfolio.staleOffers.map((offer) => ({
-      markt: offer.competitor.country.code,
-      valuta: offer.currency ?? offer.competitor.country.currency,
+    verouderdeData: snapshot.staleOffers.map((offer) => ({
       concurrent: offer.competitor.name,
       product: offer.productMatch?.product.name ?? 'Ongekoppeld',
-      laatstGecontroleerd: offer.lastCheckedAt?.toISOString() ?? null,
+      laatstGecontroleerd: offer.lastCheckedAt,
       prijs: decimalToNumber(offer.normalizedPrice),
     })),
   }
 }
 
 export async function generateWeeklyReportAction() {
-  const currentUser = await requireUser(WRITE_ROLES)
+  const systemUser = await getSystemUser()
   const today = new Date()
   const weekStart = startOfWeek(today)
   const weekEnd = endOfWeek(today)
@@ -99,7 +62,7 @@ export async function generateWeeklyReportAction() {
   })
 
   await createAuditLog({
-    userId: currentUser.id,
+    userId: systemUser.id,
     action: 'REPORT_GENERATED',
     entityType: 'Report',
     entityId: report.id,

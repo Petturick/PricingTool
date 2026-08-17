@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { DataTable } from '@/components/DataTable'
-import { ProductCreateForm } from '@/components/CatalogForms'
 import { DatabaseNotice } from '@/components/DatabaseNotice'
 import { deriveProductMetrics, getFilterOptions, getFilteredProducts } from '@/lib/dashboard'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
@@ -60,13 +59,6 @@ export default async function ProductenPage({ searchParams }: { searchParams: Pr
         <Link href="/feeds" className="rounded-xl border border-[#d7e4ff] bg-[var(--blue-soft)] px-4 py-2 text-xs font-semibold text-[var(--blue)]">Productfeed beheren</Link>
       </div>
 
-      {result.available && (
-        <ProductCreateForm
-          countries={filterOptions.countries}
-          productGroups={filterOptions.productGroups}
-        />
-      )}
-
       <form className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-5">
         <input name="q" defaultValue={filters.q} placeholder="Zoek op artikel, EAN of naam" className="rounded-xl border border-slate-300 px-3 py-2 text-sm md:col-span-2" />
         <select name="productgroep" defaultValue={filters.productGroupId} className="rounded-xl border border-slate-300 px-3 py-2 text-sm"><option value="">Alle productgroepen</option>{filterOptions.productGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select>
@@ -75,23 +67,16 @@ export default async function ProductenPage({ searchParams }: { searchParams: Pr
         <button className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white md:col-span-5">Filteren</button>
       </form>
 
-      {!filters.countryId && result.available ? (
-        <div className="rounded-2xl border border-[#dbe4f5] bg-[var(--brand-blue-soft)] px-4 py-3 text-[11px] leading-5 text-[#52658b]">Selecteer één land om eigen prijs, concurrentieprijzen, prijsverschil en marktpositie betrouwbaar te vergelijken. PrySight combineert prijzen uit verschillende markten niet langer tot één prijsindex.</div>
-      ) : null}
-
       <DataTable
         columns={[
-          { key: 'artikelnummer', header: 'Artikelnummer' }, { key: 'ean', header: 'EAN' }, { key: 'productnaam', header: 'Productnaam' }, { key: 'groep', header: 'Productgroep' }, { key: 'bron', header: 'Bron' }, { key: 'eigenPrijs', header: 'Eigen prijs' }, { key: 'laagste', header: 'Laagste concurrentieprijs' }, { key: 'gemiddeld', header: 'Gem. concurrent prijs' }, { key: 'verschilEuro', header: 'Verschil' }, { key: 'verschilPct', header: 'Verschil %' }, { key: 'positie', header: 'Marktpositie' }, { key: 'aantalConcurrenten', header: 'Aantal concurrenten' }, { key: 'voorraad', header: 'Voorraad' }, { key: 'laatsteControle', header: 'Laatste controle' }, { key: 'trend', header: 'Prijstrend' },
+          { key: 'artikelnummer', header: 'Artikelnummer' }, { key: 'ean', header: 'EAN' }, { key: 'productnaam', header: 'Productnaam' }, { key: 'groep', header: 'Productgroep' }, { key: 'bron', header: 'Bron' }, { key: 'eigenPrijs', header: 'Eigen prijs' }, { key: 'laagste', header: 'Laagste concurrentieprijs' }, { key: 'gemiddeld', header: 'Gem. concurrent prijs' }, { key: 'verschilEuro', header: 'Verschil €' }, { key: 'verschilPct', header: 'Verschil %' }, { key: 'positie', header: 'Marktpositie' }, { key: 'aantalConcurrenten', header: 'Aantal concurrenten' }, { key: 'voorraad', header: 'Voorraad' }, { key: 'laatsteControle', header: 'Laatste controle' }, { key: 'trend', header: 'Prijstrend' },
         ]}
-        rows={paged.map((item) => {
-          const currency = item.currency ?? item.product.currency
-          return {
-            artikelnummer: <Link href={`/producten/${item.product.id}`} className="font-medium text-sky-700">{item.product.articleNumber}</Link>,
-            ean: item.product.ean ?? '—', productnaam: item.product.name, groep: item.product.productGroup.name,
-            bron: sourceByProduct.get(item.product.id)?.join(', ') ?? 'Handmatig / import',
-            eigenPrijs: formatCurrency(item.ownPrice, currency), laagste: formatCurrency(item.lowestPrice, currency), gemiddeld: formatCurrency(item.averagePrice, currency), verschilEuro: formatCurrency(item.difference.diff, currency), verschilPct: item.difference.pctDiff ? `${formatNumber(Number(item.difference.pctDiff), 1)}%` : '—', positie: item.marketPosition, aantalConcurrenten: formatNumber(item.offerCount), voorraad: item.product.stockStatus ?? '—', laatsteControle: formatDate(item.lastCheckedAt), trend: item.trendDelta === null ? '—' : `${item.trendDelta >= 0 ? '+' : ''}${formatCurrency(item.trendDelta, currency)}`,
-          }
-        })}
+        rows={paged.map((item) => ({
+          artikelnummer: <Link href={`/producten/${item.product.id}`} className="font-medium text-sky-700">{item.product.articleNumber}</Link>,
+          ean: item.product.ean ?? '—', productnaam: item.product.name, groep: item.product.productGroup.name,
+          bron: sourceByProduct.get(item.product.id)?.join(', ') ?? 'Handmatig / import',
+          eigenPrijs: formatCurrency(item.ownPrice, item.product.currency), laagste: formatCurrency(item.lowestPrice), gemiddeld: formatCurrency(item.averagePrice), verschilEuro: formatCurrency(item.difference.diff), verschilPct: item.difference.pctDiff ? `${formatNumber(Number(item.difference.pctDiff), 1)}%` : '—', positie: item.marketPosition, aantalConcurrenten: formatNumber(item.offerCount), voorraad: item.product.stockStatus ?? '—', laatsteControle: formatDate(item.lastCheckedAt), trend: item.trendDelta === null ? '—' : `${item.trendDelta >= 0 ? '+' : ''}${formatCurrency(item.trendDelta)}`,
+        }))}
       />
 
       <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
