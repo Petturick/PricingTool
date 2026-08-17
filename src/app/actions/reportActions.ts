@@ -1,7 +1,8 @@
 'use server'
 
 import { Prisma, ReportStatus } from '@/generated/prisma/client'
-import { createAuditLog, getSystemUser } from '@/lib/audit'
+import { createAuditLog } from '@/lib/audit'
+import { requireUser, WRITE_ROLES } from '@/lib/authz'
 import { getDashboardSnapshot } from '@/lib/dashboard'
 import { decimalToNumber } from '@/lib/format'
 import { prisma } from '@/lib/prisma'
@@ -44,7 +45,7 @@ export async function buildWeeklyReportPayload() {
 }
 
 export async function generateWeeklyReportAction() {
-  const systemUser = await getSystemUser()
+  const currentUser = await requireUser(WRITE_ROLES)
   const today = new Date()
   const weekStart = startOfWeek(today)
   const weekEnd = endOfWeek(today)
@@ -62,7 +63,7 @@ export async function generateWeeklyReportAction() {
   })
 
   await createAuditLog({
-    userId: systemUser.id,
+    userId: currentUser.id,
     action: 'REPORT_GENERATED',
     entityType: 'Report',
     entityId: report.id,
