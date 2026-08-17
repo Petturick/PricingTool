@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 import { Sidebar } from '@/components/Sidebar'
 import { PrySightLogo } from '@/components/PrySightLogo'
 
-const marketingPaths = new Set(['/', '/features', '/pricing', '/about-us', '/request-demo'])
+const marketingPaths = new Set(['/', '/features', '/pricing', '/about-us', '/request-demo', '/login'])
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
