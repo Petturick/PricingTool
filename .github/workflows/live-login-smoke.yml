@@ -17,48 +17,71 @@ jobs:
       - name: Check live login and health
         shell: bash
         run: |
-          set +e
+          set -euo pipefail
           login_file="$(mktemp)"
           health_file="$(mktemp)"
-          trap 'rm -f "$login_file" "$health_file"' EXIT
+          headers_file="$(mktemp)"
+          trap 'rm -f "$login_file" "$health_file" "$headers_file"' EXIT
 
-          login_code="$(curl --silent --show-error --location --max-time 20 -o "$login_file" -w '%{http_code}' https://pricingtool.bolt.host/login)"
+          login_meta="$(curl --silent --show-error --location --max-time 20 -D "$headers_file" -o "$login_file" -w '%{http_code}|%{url_effective}' https://pricingtool.bolt.host/login)"
+          login_code="${login_meta%%|*}"
+          login_effective_url="${login_meta#*|}"
           health_code="$(curl --silent --show-error --max-time 20 -o "$health_file" -w '%{http_code}' https://pricingtool.bolt.host/api/health)"
 
           echo "Login HTTP: $login_code"
+          echo "Login effective URL: $login_effective_url"
           echo "Health HTTP: $health_code"
+          echo "Response server: $(awk 'BEGIN{IGNORECASE=1} /^server:/{gsub("\r",""); print $2; exit}' "$headers_file")"
+          echo "Response location: $(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^[^:]+:[[:space:]]*/,""); gsub("\r",""); print; exit}' "$headers_file")"
 
+          current_login=false
           if grep -qi 'PrySight' "$login_file" && grep -qi 'Inloggen' "$login_file"; then
+            current_login=true
             echo "Login page marker: current PrySight login detected"
           else
             echo "Login page marker: current PrySight login not detected"
+            echo "Login response sample:"
+            tr '\n' ' ' < "$login_file" | head -c 600 || true
+            echo
           fi
 
-          node -e '
-            const fs = require("fs");
-            try {
-              const h = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
-              console.log(JSON.stringify({
-                status: h.status ?? null,
-                reachable: h.database?.reachable ?? null,
-                port: h.database?.port ?? null,
-                profile: h.database?.profile ?? null
-              }));
-            } catch {
-              console.log("Health response was not valid JSON");
-            }
-          ' "$health_file"
+          health_ok=false
+          HEALTH_FILE="$health_file" node - <<'NODE'
+          const fs = require('fs')
+          const path = process.env.HEALTH_FILE
+          try {
+            const h = JSON.parse(fs.readFileSync(path, 'utf8'))
+            console.log(JSON.stringify({
+              status: h.status ?? null,
+              configured: h.database?.configured ?? null,
+              reachable: h.database?.reachable ?? null,
+              reason: h.database?.reason ?? null,
+              errorCode: h.database?.errorCode ?? null,
+              host: h.database?.host ?? null,
+              port: h.database?.port ?? null,
+              profile: h.database?.profile ?? null,
+              source: h.database?.source ?? null
+            }))
+          } catch {
+            console.log('Health response was not valid JSON')
+          }
+          NODE
+
+          if node -e 'const fs=require("fs"); const h=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); process.exit(h.status==="ok" && h.database?.reachable===true ? 0 : 1)' "$health_file"; then
+            health_ok=true
+          fi
 
           {
             echo "## PrySight live smoke"
             echo
             echo "Login HTTP: $login_code"
+            echo "Login effective URL: $login_effective_url"
             echo "Health HTTP: $health_code"
-            if grep -qi 'PrySight' "$login_file" && grep -qi 'Inloggen' "$login_file"; then
-              echo "Login page: current PrySight login detected"
-            else
-              echo "Login page: current PrySight login not detected"
-            fi
+            echo "Current login detected: $current_login"
+            echo "Database healthy: $health_ok"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          exit 0
+          if [ "$login_code" != "200" ] || [ "$login_effective_url" != "https://pricingtool.bolt.host/login" ] || [ "$current_login" != "true" ] || [ "$health_code" != "200" ] || [ "$health_ok" != "true" ]; then
+            echo "::error::Live PrySight deployment is stale or unhealthy."
+            exit 1
+          fi
