@@ -113,7 +113,7 @@ export async function setProductMarketAction(productId: string, _previousState: 
 
 export async function addCompetitorOfferAction(productId: string, _previousState: CatalogActionState, formData: FormData): Promise<CatalogActionState> {
   try {
-    await requireUser(WRITE_ROLES)
+    const currentUser = await requireUser(WRITE_ROLES)
     const parsed = competitorFormSchema.parse({
       countryId: formData.get('countryId'),
       competitorName: formData.get('competitorName'),
@@ -124,7 +124,7 @@ export async function addCompetitorOfferAction(productId: string, _previousState
       packagingUnit: formData.get('packagingUnit'),
       packagingQty: formData.get('packagingQty'),
     })
-    const linked = await linkCompetitorOffer({ productId, ...parsed })
+    const linked = await linkCompetitorOffer({ productId, ...parsed, approvedBy: currentUser.id })
     revalidatePath('/concurrenten')
     revalidatePath(`/producten/${productId}`)
     return linked.initialCheck.success
