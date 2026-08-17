@@ -20,7 +20,7 @@ function inV4Range(address: string, base: string, prefix: number) {
 export function isBlockedNetworkAddress(address: string) {
   const normalized = address.toLowerCase().replace(/^\[|\]$/g, '')
   if (isIP(normalized) === 4) {
-    return [
+    const blockedRanges: Array<[string, number]> = [
       ['0.0.0.0', 8],
       ['10.0.0.0', 8],
       ['100.64.0.0', 10],
@@ -31,7 +31,8 @@ export function isBlockedNetworkAddress(address: string) {
       ['198.18.0.0', 15],
       ['224.0.0.0', 4],
       ['240.0.0.0', 4],
-    ].some(([base, prefix]) => inV4Range(normalized, String(base), Number(prefix)))
+    ]
+    return blockedRanges.some(([base, prefix]) => inV4Range(normalized, base, prefix))
   }
 
   if (isIP(normalized) === 6) {
@@ -85,4 +86,38 @@ export async function fetchPublicUrl(input: string | URL, init: RequestInit = {}
     current = await assertPublicHttpUrl(new URL(location, current))
   }
   throw new Error('Externe bron kon niet veilig worden gevolgd.')
+}
+
+export async function readResponseArrayBufferLimited(response: Response, maxBytes: number, label = 'Externe bron') {
+  const declared = Number(response.headers.get('content-length') ?? 0)
+  if (Number.isFinite(declared) && declared > maxBytes) throw new Error(`${label} is groter dan de toegestane limiet.`)
+  if (!response.body) return new ArrayBuffer(0)
+
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (!value) continue
+    total += value.byteLength
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => undefined)
+      throw new Error(`${label} is groter dan de toegestane limiet.`)
+    }
+    chunks.push(value)
+  }
+
+  const combined = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    combined.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return combined.buffer
+}
+
+export async function readResponseTextLimited(response: Response, maxBytes: number, label = 'Externe bron') {
+  const buffer = await readResponseArrayBufferLimited(response, maxBytes, label)
+  return new TextDecoder().decode(buffer)
 }
