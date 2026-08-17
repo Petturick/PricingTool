@@ -33,7 +33,6 @@ function patchFile(file) {
   const absoluteWorkEnd = absoluteWorkStart + workStoreMatch[0].length
   const indent = workStoreMatch[1]
   const expression = workStoreMatch[2]
-  const line = `\n${indent}const workStore = ${expression}`
 
   let patched = original.slice(0, absoluteWorkStart) + original.slice(absoluteWorkEnd)
   const absoluteMetadataIndex = patched.indexOf('const metadataItems = await resolveMetadataItems(', fnIndex)
